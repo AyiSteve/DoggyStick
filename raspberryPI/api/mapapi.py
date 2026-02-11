@@ -1,0 +1,140 @@
+import googlemaps
+from geopy.distance import geodesic
+import math
+import polyline
+
+gmaps = googlemaps.Client(key="AIzaSyDipGnBuSsmfubof6qHdRn-dKliz9MVzrA")
+
+# This library connect with the google map api and ask for path from current to destination.
+# Two type of path that can be explained: transit and walk
+class MapNavigator:
+    def __init__(self, current):
+        self.currentLocation = current
+        self.destination = None
+        self.path = []
+
+        self.directionsTransit = None
+        self.directionsWalk = None
+        self.WalkPath = None
+        self.TransitPath = None
+
+    def updateDestination(self, intendedDestination):
+        self.destination = intendedDestination
+
+    def updateCurrentLocation(self, current):
+        self.currentLocation = current
+
+    def updateDirection(self):
+        print(self.currentLocation)
+        if self.currentLocation is None or self.destination is None:
+            print("MapNavigator: missing origin or destination")
+            return
+        self.directionsWalk = gmaps.directions(
+            origin = self.currentLocation,
+            destination = self.destination,
+            mode = "walking"
+        )
+
+        #self.directionsTransit = gmaps.directions(
+        #     origin = self.currentLocation,
+        #     destination = self.destination,
+        #     mode = "transit"
+        # )
+
+        steps = self.directionsWalk[0]["legs"][0]["steps"]
+        self.WalkPath = []
+
+        for step in steps:
+            decoded = polyline.decode(step["polyline"]["points"])
+            for point in decoded:
+                self.WalkPath.append(point)
+
+        print(steps)
+        #steps = self.directionsTransit[0]["legs"][0]["steps"]
+        #self.TransitPath = []
+        #for step in steps:
+            # start = step["start_location"]
+            # end = step["end_location"]
+            # self.TransitPath.append((start["lat"], start["lng"]))
+            # self.TransitPath.append((end["lat"], end["lng"]))
+       
+
+    def getDistanceWalk(self):
+
+        leg = self.directionsWalk[0]["legs"][0]
+        distance = leg["distance"]["text"]
+        duration = leg["duration"]["text"]
+
+        return distance, duration
+    
+    def getDistanceTransit(self):
+
+        leg = self.directionsTransit[0]["legs"][0]
+        distance = leg["distance"]["text"]
+        duration = leg["duration"]["text"]
+
+        return distance, duration
+    
+    def getCurrentPathWalk(self, n):
+        return self.WalkPath[n]
+    
+    def getCurrentPathTransit(self, n):
+        return self.TransitPath[n]
+    
+    def distance(self, p1, p2):
+        return geodesic(p1, p2).meters
+
+    def bearing(self, p1, p2):
+        # Convert to radians frin degrees
+        lat1, lon1 = map(math.radians, p1)
+        lat2, lon2 = map(math.radians, p2)
+
+        # Differences between two point
+        dlon = lon2 - lon1
+
+        # East-West Component of direction
+        x = math.sin(dlon) * math.cos(lat2)
+
+        # North-South component of direction
+        y = math.cos(lat1)*math.sin(lat2) - math.sin(lat1)*math.cos(lat2)*math.cos(dlon)
+
+        # Computes the angle of the direction vector relative to North
+        # Normalize result to 0-360
+        return (math.degrees(math.atan2(x, y)) + 360) % 360
+
+    def computeTurnAngle(self, gps):
+        heading = self.gpsHeading(gps)
+        if heading is None or self.target is None:
+            return None
+
+        desired = self.map.bearing(gps, self.target)
+        turn = (desired - heading + 540) % 360 - 180
+        return turn
+
+    def recalculateRoute(self, current_position):
+        """
+        Recalculate walking route from current GPS to existing destination.
+        """
+        self.updateCurrentLocation(current_position)
+        self.updateDirection()   # This rebuilds WalkPath
+
+        return self.WalkPath
+#import googlemaps
+
+#API_KEY = "YOUR_API_KEY_HERE"
+#gmaps = googlemaps.Client(key=API_KEY)
+
+#directions = gmaps.directions(
+#    origin=(47.653785, -122.308408),
+#    destination="Seattle Public Library",
+#    mode="walking"
+#)
+
+#steps = directions[0]["legs"][0]["steps"]
+
+#print("directions")
+#for i, step in enumerate(steps):
+#    instruction = step["html_instructions"]
+#    distance = step["distance"]["text"]
+#    duration = step["duration"]["text"]
+#    print(f"{i+1}. {instruction} ({distance}, {duration})")
