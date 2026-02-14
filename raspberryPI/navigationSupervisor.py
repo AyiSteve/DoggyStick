@@ -1,14 +1,11 @@
 import time
 from api.mapapi import MapNavigator
 from navigation import Navigation
-<<<<<<< HEAD
-#from mygps import myGPS
+from mygps import myGPS
 
-=======
 from mygps import myGPS
 from bluetooth_mod import BluetoothUART
 from button_recorder import VoiceRecordButton
->>>>>>> c57e337 (connected everything)
 
 class NavigationSupervisor:
     def __init__(self, mode="walk", period=1.0):
@@ -32,9 +29,6 @@ class NavigationSupervisor:
     # --------------------------------------------------
     def read_Mic(self):
         # Replace later
-<<<<<<< HEAD
-        return "Red Square Area"
-=======
         read = self.voiceRecord.script
         self.voiceRecord.script = None   # clear after reading
         return read
@@ -43,7 +37,6 @@ class NavigationSupervisor:
         self.gps.read()
         position = self.nav_agent.smoothGPS(self.gps.get_position())
         return position
->>>>>>> c57e337 (connected everything)
 
     def read_ultrasonic(self):
         ultrasonicLine = self.ultrasonic.read_line()
