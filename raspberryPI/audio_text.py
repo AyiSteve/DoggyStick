@@ -2,29 +2,37 @@ import json
 import wave
 from vosk import Model, KaldiRecognizer
 
+import json
+import wave
+from vosk import Model, KaldiRecognizer
+
+# Load model ONCE
+model = Model("vosk-model-small-en-us-0.15")
+
 def audio_text(wav_path: str) -> str:
-    """convert the .wav to plaintext
-    .wav needs to be mono, 16bit PCM and 16kHz sample rate
-    returm the plaintext
     """
-    model = Model("vosk-model-small-en-us-0.15")
+    Convert .wav (mono, 16-bit PCM, 16kHz) to plaintext
+    """
+
     wf = wave.open(wav_path, "rb")
 
     if wf.getnchannels() != 1:
         raise ValueError("Audio needs to be mono")
     if wf.getsampwidth() != 2:
         raise ValueError("Audio must be 16bit PCM")
-    
-    rec = KaldiRecognizer(model, wf.getframerate())
+    if wf.getframerate() != 16000:
+        raise ValueError("Audio must be 16kHz")
+
+    rec = KaldiRecognizer(model, 16000)
 
     while True:
         data = wf.readframes(4000)
-        if len(data) == 0:
+        if not data:
             break
         rec.AcceptWaveform(data)
+
     result = json.loads(rec.FinalResult())
     return result.get("text", "")
-
 
     # microphone set up 
     """

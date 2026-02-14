@@ -3,13 +3,14 @@ import time
 import serial
 
 class BluetoothUART:
-    def __init__(self, mac, rfcomm_port=0, baud=9600, timeout=1):
+    def __init__(self, mac = "00:23:09:01:63:2A", rfcomm_port=0, baud=9600, timeout=1):
         self.mac = mac
         self.rfcomm_port = rfcomm_port
         self.dev = f"/dev/rfcomm{rfcomm_port}"
         self.baud =baud
         self.timeout = timeout
         self.ser = None
+
 
     def connect(self):
         subprocess.run(["sudo", "rfcomm", "release", str(self.rfcomm_port)],
@@ -18,11 +19,6 @@ class BluetoothUART:
                        check=True)
         time.sleep(0.5)
         self.ser = serial.Serial(self.dev, self.baud, timeout=self.timeout)
-
-    def send(self,msg:str):
-        if self.ser is None:
-            raise RuntimeError("BluetoothUART not connect, call connect() first")
-        self.ser.write((msg + "\n").encode())
 
     def readline(self):
         if self.ser is None:

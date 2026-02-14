@@ -1,8 +1,14 @@
 import time
 from api.mapapi import MapNavigator
 from navigation import Navigation
+<<<<<<< HEAD
 #from mygps import myGPS
 
+=======
+from mygps import myGPS
+from bluetooth_mod import BluetoothUART
+from button_recorder import VoiceRecordButton
+>>>>>>> c57e337 (connected everything)
 
 class NavigationSupervisor:
     def __init__(self, mode="walk", period=1.0):
@@ -17,13 +23,31 @@ class NavigationSupervisor:
         self.navigating = False
         self.destination = None
 
+        self.ultrasonic = BluetoothUART()
+        self.ultrasonic.connect()
+
+        self.voiceRecord = VoiceRecordButton()
     # --------------------------------------------------
     # INPUT SOURCES
     # --------------------------------------------------
     def read_Mic(self):
         # Replace later
+<<<<<<< HEAD
         return "Red Square Area"
+=======
+        read = self.voiceRecord.script
+        self.voiceRecord.script = None   # clear after reading
+        return read
 
+    def read_gps(self):
+        self.gps.read()
+        position = self.nav_agent.smoothGPS(self.gps.get_position())
+        return position
+>>>>>>> c57e337 (connected everything)
+
+    def read_ultrasonic(self):
+        ultrasonicLine = self.ultrasonic.read_line()
+        return [int(num) for num in ultrasonicLine.split()]
     # def read_gps(self):
     #     self.gps.read()
     #     position = self.nav_agent.smoothGPS(self.gps.get_position())
@@ -131,34 +155,41 @@ class NavigationSupervisor:
     # --------------------------------------------------
     def run(self):
         print("[Supervisor] Running main loop")
+        while(1):
+            new_text = self.read_Mic()
 
-        while True:
-            start = time.time()
+            if new_text is not None:
+                if self.destination != new_text:
+                    self.destination = new_text
+                    print("New destination:", self.destination)
 
-            cl = self.read_gps()
-            if cl is None:
-                time.sleep(0.2)
-                continue
+        # while True:
+        #     start = time.time()
 
-            # Initialize map navigator once GPS is ready
-            if not self.map_nav:
-                self.map_nav = MapNavigator(cl)
-                self.nav_agent = Navigation(self.map_nav, mode=self.mode)
+        #     cl = self.read_gps()
+        #     if cl is None:
+        #         time.sleep(0.2)
+        #         continue
 
-            self.map_nav.updateCurrentLocation(cl)
+        #     # Initialize map navigator once GPS is ready
+        #     if not self.map_nav:
+        #         self.map_nav = MapNavigator(cl)
+        #         self.nav_agent = Navigation(self.map_nav, mode=self.mode)
 
-            self.updateNavigatingStatus(cl)
+        #     self.map_nav.updateCurrentLocation(cl)
 
-            if self.navigating and self.nav_agent.path:
+        #     self.updateNavigatingStatus(cl)
 
-                print("Current location:", cl)
-                print("Current index:", self.nav_agent.index)
+        #     if self.navigating and self.nav_agent.path:
 
-                state = self.nav_agent.navigate(cl)
-                self.stateMachine(state, cl)
+        #         print("Current location:", cl)
+        #         print("Current index:", self.nav_agent.index)
 
-            elapsed = time.time() - start
-            time.sleep(max(0.0, self.period - elapsed))
+        #         state = self.nav_agent.navigate(cl)
+        #         self.stateMachine(state, cl)
+
+        #     elapsed = time.time() - start
+        #     time.sleep(max(0.0, self.period - elapsed))
 
 
 # --------------------------------------------------

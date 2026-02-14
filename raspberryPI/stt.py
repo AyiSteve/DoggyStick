@@ -33,18 +33,16 @@ def speech_to_text(wav_file: str) -> str:
         result_text.append(final["text"])
     return " ".join(result_text)
 
-def main():
+def get_text(wav_file):
     if len(sys.argv) !=2:
-        print("Usage: python stt.py <wav_file>")
-        sys.exit(1)
+        print("EXIT")
+        return
+
     wav_file = sys.argv[1]
-    print(f"[STT] Processing {wav_file}")
     text = speech_to_text(wav_file)
-    print("[STT Recognized text: ]")
-    print(text)
+    return text
     
-if __name__ == "__main__":
-    main()
+
                  
 
 
