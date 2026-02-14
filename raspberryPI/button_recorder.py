@@ -49,20 +49,39 @@ class VoiceRecordButton:
 
     # --------------------------------------------------
     def record_in_mono(self):
-        print("[REC] Recording mono audio...")
+        temp_wav = "temp.wav"  # intermediate file
+        
+        # Record in high-quality native format
         cmd_record = [
             "arecord", "-D", self.device,
-            "-c", "1",          # mono
-            "-r", "16000",      # 16 kHz for VOSK
-            "-f", "S16_LE",     # 16-bit PCM
+            "-c", "1",         # mono
+            "-r", "48000",     # native 48kHz
+            "-f", "S32_LE",    # 32-bit PCM
             "-t", "wav",
             "-d", str(self.duration),
+            temp_wav
+        ]
+        subprocess.run(cmd_record, check=True)
+        print(f"[REC] Saved temp file: {temp_wav}")
+        
+        # Downsample to 16 kHz, 16-bit PCM for VOSK
+        cmd_sox = [
+            "sox", temp_wav,
+            "-r", "16000", "-b", "16", "-c", "1",
             self.mono_wav
         ]
-        subprocess.run(cmd_record, check=True)  # waits until done
-        print(f"[REC] Saved: {self.mono_wav}")
+        subprocess.run(cmd_sox, check=True)
+        print(f"[SOX] Converted to mono: {self.mono_wav}")
+        
+        # Optional: boost volume
+        cmd_gain = [
+            "sox", self.mono_wav,
+            self.mono_wav,
+            "gain", "10"
+        ]
+        subprocess.run(cmd_gain, check=True)
+        print(f"[SOX] Volume boosted: {self.mono_wav}")
 
-        time.sleep(2)
 
 
 
