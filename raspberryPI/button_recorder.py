@@ -4,6 +4,7 @@ from stt import get_text
 import subprocess
 import time
 import sys
+from threading import Thread
 
 from bluetooth_mod import BluetoothUART
 
@@ -40,6 +41,9 @@ class VoiceRecordButton:
     def handle_press(self):
         print("[BTN] Press detected")
 
+        Thread(target=self.process_audio).start()
+
+    def process_audio(self):
         self.record_in_mono()
         self.script = self.stt()
 
@@ -58,14 +62,6 @@ class VoiceRecordButton:
         subprocess.run(cmd_record, check=True)  # waits until done
         print(f"[REC] Saved: {self.mono_wav}")
 
-        # Optional: boost volume safely
-        cmd_gain = [
-            "sox", self.mono_wav,
-            self.mono_wav,
-            "gain", "10"
-        ]
-        subprocess.run(cmd_gain, check=True)  # waits until done
-        print(f"[SOX] Volume boosted: {self.mono_wav}")
         time.sleep(2)
 
 
@@ -74,6 +70,7 @@ class VoiceRecordButton:
     def stt(self):
         print("[STT] Running VOSK...")
         text = get_text(self.mono_wav)
+        print(f"[STT] Recognized text: {text}")   # <-- add this line
         return text
         
 
