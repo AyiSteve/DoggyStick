@@ -34,14 +34,9 @@ def speech_to_text(wav_file: str) -> str:
     return " ".join(result_text)
 
 def get_text(wav_file):
-    if len(sys.argv) !=2:
-        print("EXIT")
-        return
-
-    wav_file = sys.argv[1]
     text = speech_to_text(wav_file)
     return text
-    
+
 
                  
 
