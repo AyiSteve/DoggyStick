@@ -1,7 +1,7 @@
 import time
 from api.mapapi import MapNavigator
 from navigation import Navigation
-from mygps import myGPS
+#from mygps import myGPS
 
 
 class NavigationSupervisor:
@@ -9,7 +9,7 @@ class NavigationSupervisor:
         self.period = period
         self.mode = mode
 
-        self.gps = myGPS()
+        self.gps = None
 
         self.map_nav = MapNavigator(None)
         self.nav_agent = Navigation(self.map_nav)
@@ -22,21 +22,21 @@ class NavigationSupervisor:
     # --------------------------------------------------
     def read_Mic(self):
         # Replace later
-        return "14429 SE 19th PL"
-
-    def read_gps(self):
-        self.gps.read()
-        position = self.nav_agent.smoothGPS(self.gps.get_position())
-        return position
+        return "Red Square Area"
 
     # def read_gps(self):
-    #     try:
-    #         lat = float(input("Enter latitude  : "))
-    #         lon = float(input("Enter longitude : "))
-    #         return (lat, lon)
-    #     except ValueError:
-    #         print("Invalid input. Please enter numeric values.")
-    #         return None
+    #     self.gps.read()
+    #     position = self.nav_agent.smoothGPS(self.gps.get_position())
+    #     return position
+
+    def read_gps(self):
+        try:
+            lat = float(input("Enter latitude  : "))
+            lon = float(input("Enter longitude : "))
+            return (lat, lon)
+        except ValueError:
+            print("Invalid input. Please enter numeric values.")
+            return None
 
    # --------------------------------------------------
     # NAVIGATION CONTROL
