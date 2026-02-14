@@ -40,14 +40,13 @@ class VoiceRecordButton:
     def handle_press(self):
         print("[BTN] Press detected")
 
-        self.record_stereo_audio()
         self.convert_to_mono()
         self.script = self.stt()
 
     # --------------------------------------------------
     def record_stereo_audio(self):
         print("[REC] Recording...")
-        cmd = [
+        cmd = [ 
             "arecord", "-D", self.device,
             "-c", "2", "-r", "48000",
             "-f", "S32_LE", "-t", "wav",
@@ -61,15 +60,17 @@ class VoiceRecordButton:
     def convert_to_mono(self):
         print("[SOX] Converting to mono...")
         cmd = [
-            "sox", self.stereo_wav,
-            "-r", "16000",
-            "-c", "1",
-            "-b", "16",
-            self.mono_wav,
-            "remix", "1"
+        "arecord", "-D", self.device,
+        "-c", "1",          # mono
+        "-r", "9600",      # sample rate VOSK expects
+        "-f", "S16_LE",     # 16-bit PCM
+        "-t", "wav",
+        "-d", str(self.duration),
+        self.mono_wav
         ]
         subprocess.run(cmd, check=True)
         print(f"[SOX] Saved: {self.mono_wav}")
+        time.sleep(5)
 
     # --------------------------------------------------
     def stt(self):
