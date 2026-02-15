@@ -83,6 +83,7 @@ class VoiceRecordButton:
     def stt(self):
         print("[STT] Running VOSK...")
         text = get_text(self.mono_wav)
+        print(text)
         return text
         
 

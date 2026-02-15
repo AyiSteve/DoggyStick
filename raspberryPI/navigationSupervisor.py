@@ -12,7 +12,7 @@ class NavigationSupervisor:
         self.period = period
         self.mode = mode
 
-        self.gps = None
+        self.gps = myGPS()
 
         self.map_nav = MapNavigator(None)
         self.nav_agent = Navigation(self.map_nav)
@@ -20,8 +20,9 @@ class NavigationSupervisor:
         self.navigating = False
         self.destination = None
 
-        self.ultrasonic = BluetoothUART()
-        self.ultrasonic.connect()
+
+        self.stm32 = BluetoothUART()
+        self.stm32.connect()
 
         self.voiceRecord = VoiceRecordButton()
     # --------------------------------------------------
@@ -39,21 +40,22 @@ class NavigationSupervisor:
         return position
 
     def read_ultrasonic(self):
-        ultrasonicLine = self.ultrasonic.read_line()
+        ultrasonicLine = self.stm32.readline()
+        if ultrasonicLine == None:
+            return
         return [int(num) for num in ultrasonicLine.split()]
-    # def read_gps(self):
-    #     self.gps.read()
-    #     position = self.nav_agent.smoothGPS(self.gps.get_position())
-    #     return position
 
-    def read_gps(self):
-        try:
-            lat = float(input("Enter latitude  : "))
-            lon = float(input("Enter longitude : "))
-            return (lat, lon)
-        except ValueError:
-            print("Invalid input. Please enter numeric values.")
-            return None
+    def send_angleServo(self, angle):
+        self.stm32.send(angle)
+
+    # def read_gps(self):
+    #     try:
+    #         lat = float(input("Enter latitude  : "))
+    #         lon = float(input("Enter longitude : "))
+    #         return (lat, lon)
+    #     except ValueError:
+    #         print("Invalid input. Please enter numeric values.")
+    #         return None
 
    # --------------------------------------------------
     # NAVIGATION CONTROL
@@ -148,41 +150,34 @@ class NavigationSupervisor:
     # --------------------------------------------------
     def run(self):
         print("[Supervisor] Running main loop")
-        while(1):
-            new_text = self.read_Mic()
 
-            if new_text is not None:
-                if self.destination != new_text:
-                    self.destination = new_text
-                    print("New destination:", self.destination)
+        while True:
+            start = time.time()
 
-        # while True:
-        #     start = time.time()
+            cl = self.read_gps()
+            if cl is None:
+                time.sleep(0.2)
+                continue
 
-        #     cl = self.read_gps()
-        #     if cl is None:
-        #         time.sleep(0.2)
-        #         continue
+            # Initialize map navigator once GPS is ready
+            if not self.map_nav:
+                self.map_nav = MapNavigator(cl)
+                self.nav_agent = Navigation(self.map_nav, mode=self.mode)
 
-        #     # Initialize map navigator once GPS is ready
-        #     if not self.map_nav:
-        #         self.map_nav = MapNavigator(cl)
-        #         self.nav_agent = Navigation(self.map_nav, mode=self.mode)
+            self.map_nav.updateCurrentLocation(cl)
 
-        #     self.map_nav.updateCurrentLocation(cl)
+            self.updateNavigatingStatus(cl)
 
-        #     self.updateNavigatingStatus(cl)
+            if self.navigating and self.nav_agent.path:
 
-        #     if self.navigating and self.nav_agent.path:
+                print("Current location:", cl)
+                print("Current index:", self.nav_agent.index)
 
-        #         print("Current location:", cl)
-        #         print("Current index:", self.nav_agent.index)
+                state = self.nav_agent.navigate(cl)
+                self.stateMachine(state, cl)
 
-        #         state = self.nav_agent.navigate(cl)
-        #         self.stateMachine(state, cl)
-
-        #     elapsed = time.time() - start
-        #     time.sleep(max(0.0, self.period - elapsed))
+            elapsed = time.time() - start
+            time.sleep(max(0.0, self.period - elapsed))
 
 
 # --------------------------------------------------

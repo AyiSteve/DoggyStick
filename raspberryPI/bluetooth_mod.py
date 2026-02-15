@@ -25,7 +25,13 @@ class BluetoothUART:
             raise RuntimeError("BluetoothUART not connect, call connect() first")
         line = self.ser.readline().decode(errors="ignore").strip()
         return line if line else None
-    
+
+    def send(self, angleServo, mode = "servo"):
+        if self.ser is None:
+            raise RuntimeError("BluetoothUART not connect, call connect() first")
+        data = f"{angleServo}\n"
+        self.ser.write(data.encode())
+
     def close(self):
         try:
             if self.ser:
