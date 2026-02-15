@@ -26,6 +26,7 @@
 #include "stm32f4xx_hal.h"
 #include "stdio.h"
 #include "liquidcrystal_i2c.h"
+#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +50,7 @@ I2C_HandleTypeDef hi2c1;
 I2S_HandleTypeDef hi2s3;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 
@@ -63,6 +65,7 @@ static void MX_I2C1_Init(void);
 static void MX_I2S3_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM3_Init(void);
 void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
@@ -93,6 +96,11 @@ static const GPIO_TypeDef* trig_port[3] = { GPIOA, GPIOA, GPIOB };
 static const uint16_t      trig_pin[3]  = { GPIO_PIN_6, GPIO_PIN_7, GPIO_PIN_0 };
 static const uint32_t      tim_channel[3] = { TIM_CHANNEL_1, TIM_CHANNEL_2, TIM_CHANNEL_3 };
 
+#define BT_BUFFER_SIZE 10
+
+uint8_t bt_rx;
+char bt_buffer[BT_BUFFER_SIZE];
+uint8_t bt_index = 0;
 
 void delay_us(uint32_t us)
 {
@@ -230,6 +238,9 @@ int main(void)
   MX_TIM2_Init();
   MX_USB_HOST_Init();
   MX_USART1_UART_Init();
+  HAL_UART_Receive_IT(&huart1, &bt_rx, 1);
+  MX_TIM3_Init();
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   /* USER CODE BEGIN 2 */
 
   HD44780_Init(2);
@@ -263,13 +274,46 @@ int main(void)
 	  HD44780_PrintStr(lcd_buf0);
 	  HD44780_SetCursor(0,1);
 	  HD44780_PrintStr(lcd_buf1);
-	  HAL_Delay(100);
+
+
     /* USER CODE END WHILE */
     MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        if (bt_rx == '\r' || bt_rx == '\n')
+        {
+            bt_buffer[bt_index] = '\0';
+            int angle = atoi(bt_buffer);
+            Servo_SetAngle(angle);
+            bt_index = 0;
+        }
+        else
+        {
+            if (bt_index < BT_BUFFER_SIZE - 1)
+            {
+                bt_buffer[bt_index++] = bt_rx;
+            }
+        }
+
+        HAL_UART_Receive_IT(&huart1, &bt_rx, 1);
+    }
+}
+
+void Servo_SetAngle(uint16_t angle)
+{
+    if (angle > 180) angle = 180;
+
+    uint16_t pulse = 1000 + (angle * 1000) / 180;
+
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulse);
 }
 
 /**
@@ -438,6 +482,55 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 83;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 19999;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 1500;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
