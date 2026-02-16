@@ -122,8 +122,10 @@ class MapNavigator:
         return self.WalkPath
     
     def text_search(self, query):
+        if (query == None):
+            return
         lat, lng = self.currentLocation
-
+        print(self.currentLocation)
         url = "https://places.googleapis.com/v1/places:searchText"
 
         headers = {

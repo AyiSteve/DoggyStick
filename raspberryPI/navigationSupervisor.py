@@ -25,6 +25,7 @@ class NavigationSupervisor:
         self.stm32.connect()
 
         self.voiceRecord = VoiceRecordButton()
+        self.potentialDestination = None
     # --------------------------------------------------
     # INPUT SOURCES
     # --------------------------------------------------
@@ -44,6 +45,17 @@ class NavigationSupervisor:
         if ultrasonicLine == None:
             return
         return [int(num) for num in ultrasonicLine.split()]
+
+    def pipLineGetPath(self):
+        text = "belle collee"
+        gps = self.read_gps()
+        self.map_nav.currentLocation = gps
+        print(gps)
+        group = []
+        if text != None and gps != None:
+            group = self.map_nav.text_search(text)
+            if len(group) > 0:
+                self.potentialDestination = group
 
     def send_angleServo(self, angle):
         self.stm32.send(angle)
@@ -127,13 +139,12 @@ class NavigationSupervisor:
     # --------------------------------------------------
     def updateNavigatingStatus(self, cl):
 
-        potentialDestination = self.read_Mic()
 
-        if potentialDestination == "Stop":
+        if self.potentialDestination == "Stop":
             self.stop_navigation()
             return
 
-        if potentialDestination and cl:
+        if self.potentialDestination and cl:
 
             # Only initialize once
             if not self.map_nav:
@@ -141,8 +152,8 @@ class NavigationSupervisor:
                 self.nav_agent = Navigation(self.map_nav, mode=self.mode)
 
             # Only restart if destination changes
-            if potentialDestination != self.destination:
-                self.setDestination(potentialDestination)
+            if self.potentialDestination != self.destination:
+                self.setDestination(self.potentialDestination)
                 self.startNavigation()
 
     # --------------------------------------------------
@@ -150,34 +161,34 @@ class NavigationSupervisor:
     # --------------------------------------------------
     def run(self):
         print("[Supervisor] Running main loop")
-
         while True:
-            start = time.time()
 
-            cl = self.read_gps()
-            if cl is None:
-                time.sleep(0.2)
-                continue
+            # start = time.time()
 
-            # Initialize map navigator once GPS is ready
-            if not self.map_nav:
-                self.map_nav = MapNavigator(cl)
-                self.nav_agent = Navigation(self.map_nav, mode=self.mode)
+            # cl = self.read_gps()
+            # if cl is None:
+            #     time.sleep(0.2)
+            #     continue
 
-            self.map_nav.updateCurrentLocation(cl)
+            # # Initialize map navigator once GPS is ready
+            # if not self.map_nav:
+            #     self.map_nav = MapNavigator(cl)
+            #     self.nav_agent = Navigation(self.map_nav, mode=self.mode)
 
-            self.updateNavigatingStatus(cl)
+            # self.map_nav.updateCurrentLocation(cl)
 
-            if self.navigating and self.nav_agent.path:
+            # self.updateNavigatingStatus(cl)
 
-                print("Current location:", cl)
-                print("Current index:", self.nav_agent.index)
+            # if self.navigating and self.nav_agent.path:
 
-                state = self.nav_agent.navigate(cl)
-                self.stateMachine(state, cl)
+            #     print("Current location:", cl)
+            #     print("Current index:", self.nav_agent.index)
 
-            elapsed = time.time() - start
-            time.sleep(max(0.0, self.period - elapsed))
+            #     state = self.nav_agent.navigate(cl)
+            #     self.stateMachine(state, cl)
+
+            # elapsed = time.time() - start
+            # time.sleep(max(0.0, self.period - elapsed))
 
 
 # --------------------------------------------------
