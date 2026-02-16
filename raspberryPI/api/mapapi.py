@@ -2,6 +2,7 @@ import googlemaps
 from geopy.distance import geodesic
 import math
 import polyline
+import requests
 
 gmaps = googlemaps.Client(key="AIzaSyDipGnBuSsmfubof6qHdRn-dKliz9MVzrA")
 
@@ -119,6 +120,39 @@ class MapNavigator:
         self.updateDirection()   # This rebuilds WalkPath
 
         return self.WalkPath
+    
+    def text_search(self, query):
+        lat, lng = self.currentLocation
+
+        url = "https://places.googleapis.com/v1/places:searchText"
+
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": "AIzaSyDipGnBuSsmfubof6qHdRn-dKliz9MVzrA",
+            "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location"
+        }
+
+        body = {
+            "textQuery": query,
+            "locationBias": {
+                "circle": {
+                    "center": {
+                        "latitude": lat,
+                        "longitude": lng
+                    },
+                    "radius": 5000
+                }
+            }
+        }
+
+        response = requests.post(url, headers=headers, json=body)
+
+        if response.status_code == 200:
+            return response.json().get("places", [])
+        else:
+            print("Error:", response.text)
+            return []
+        
 #import googlemaps
 
 #API_KEY = "YOUR_API_KEY_HERE"
