@@ -2,7 +2,7 @@ import time
 from api.mapapi import MapNavigator
 from navigation import Navigation
 from mygps import myGPS
-
+import threading
 from mygps import myGPS
 from bluetooth_mod import BluetoothUART
 from button_recorder import VoiceRecordButton
@@ -18,14 +18,26 @@ class NavigationSupervisor:
         self.nav_agent = Navigation(self.map_nav)
 
         self.navigating = False
-        self.destination = None
 
 
         self.stm32 = BluetoothUART()
         self.stm32.connect()
+        self.ultrasonicLine = None
+
 
         self.voiceRecord = VoiceRecordButton()
-        self.potentialDestination = None
+
+        self.state = None
+    def reset(self, destination):
+        # keep same map_nav object
+        self.map_nav.updateDestination(destination)
+        self.map_nav.updateDirection()
+
+        # update navigation path
+        self.nav_agent.path = self.map_nav.WalkPath
+        self.nav_agent.index = 0
+        self.nav_agent.target = None
+
     # --------------------------------------------------
     # INPUT SOURCES
     # --------------------------------------------------
@@ -35,30 +47,69 @@ class NavigationSupervisor:
         self.voiceRecord.script = None   # clear after reading
         return read
 
+    # This function will be run independently to update the current location
     def read_gps(self):
         self.gps.read()
         position = self.nav_agent.smoothGPS(self.gps.get_position())
-        return position
+        self.map_nav.updateCurrentLocation(position)
 
     def read_ultrasonic(self):
-        ultrasonicLine = self.stm32.readline()
-        if ultrasonicLine == None:
-            return
-        return [int(num) for num in ultrasonicLine.split()]
-
-    def pipLineGetPath(self):
-        text = "belle collee"
-        gps = self.read_gps()
-        self.map_nav.currentLocation = gps
-        print(gps)
-        group = []
-        if text != None and gps != None:
-            group = self.map_nav.text_search(text)
-            if len(group) > 0:
-                self.potentialDestination = group
+        self.ultrasonicLine = self.stm32.readline()
 
     def send_angleServo(self, angle):
         self.stm32.send(angle)
+
+# PipLineGetPath function will be run independently on capturing the data from mic, asking user for correct addres + update the destination location
+    def pipLineGetPath(self, numPlace=5):
+
+        text = self.read_Mic()
+
+        if text is None or self.map_nav.currentLocation is None:
+            return
+
+        result = self.map_nav.text_search(text)
+
+        if not result:
+            print("No results found.")
+            return
+
+        # Show options
+        for i, place in enumerate(result[:numPlace]):
+            name = place["displayName"]["text"]
+            addr = place.get("formattedAddress", "")
+            print(f"{i+1}. {name} — {addr}")
+
+        choice = input("\nSelect destination number: ")
+
+        if choice.isdigit():
+            index = int(choice) - 1
+
+            if 0 <= index < len(result):
+
+                selected = result[index]
+
+                name = selected["displayName"]["text"]
+
+                lat = selected["location"]["latitude"]
+                lng = selected["location"]["longitude"]
+
+                # Store coordinates
+                with self.lock:
+                    self.reset((lat,lng))
+                    self.navigating = True
+                print(f"Destination set: {name}")
+                print(f"Coordinates: ({lat}, {lng})")
+                
+
+    def pipeLineStatusPath(self):
+        if self.map_nav.currentLocation == None or self.nav_agent.path == None:
+            print("Can't Navigate with No GPS and PATH")
+            return
+        
+        if self.navigating:
+            gps = self.map_nav.currentLocation
+            self.state = self.nav_agent.navigate(gps)
+
 
     # def read_gps(self):
     #     try:
@@ -69,48 +120,22 @@ class NavigationSupervisor:
     #         print("Invalid input. Please enter numeric values.")
     #         return None
 
-   # --------------------------------------------------
-    # NAVIGATION CONTROL
-    # --------------------------------------------------
-    def setDestination(self, destination):
-        self.destination = destination
-        self.map_nav.updateDestination(destination)
-
-    def startNavigation(self):
-
-        self.map_nav.updateDirection()
-        self.nav_agent.path = self.map_nav.WalkPath
-
-        cl = self.map_nav.currentLocation
-
-        if cl is None or not self.nav_agent.path:
-            print("Cannot start navigation ? missing GPS or path")
-            return
-
-        # Forward nearest snapping
-        nearest_index = min(
-            range(len(self.nav_agent.path)),
-            key=lambda i: self.map_nav.distance(cl, self.nav_agent.path[i])
-        )
-
-        self.nav_agent.index = nearest_index
-        self.navigating = True
-
-        print(f"[Supervisor] Navigation started at index {nearest_index}")
-
     def stop_navigation(self):
         self.navigating = False
         print("[Navigation Supervisor] Navigation Stopped")
 
+
     # --------------------------------------------------
     # STATE MACHINE OUTPUT
     # --------------------------------------------------
-    def stateMachine(self, state, gps):
+    def stateMachine(self, state):
 
+        if state == None:
+            return
+        
         if state == "FOLLOW_ROUTE":
             target = self.nav_agent.target
-            desired = self.map_nav.bearing(gps, target)
-            print(f"[FOLLOW] target={target} desired_heading={desired:.1f}")
+            print(f"[FOLLOW] target={target}")
 
         elif state == "WRONG_DIRECTION":
             angle = self.nav_agent.turn_angle
@@ -120,13 +145,7 @@ class NavigationSupervisor:
                 print(f"Turn LEFT {abs(angle):.1f}�")
 
         elif state == "OFF_ROUTE":
-            # Recalculate route
-            new_path = self.map_nav.recalculateRoute(cl)
-
-            # Create new Navigation instance
-            self.nav_agent = Navigation(self.map_nav)
-            self.nav_agent.path = new_path
-            self.nav_agent.updateTarget()
+            self.nav_agent.updatePath()
 
             print("[WARN] Off route ? stop + reroute suggestion")
 
@@ -134,67 +153,58 @@ class NavigationSupervisor:
             print("[DONE] Destination reached ? stopping navigation")
             self.stop_navigation()
 
-    # --------------------------------------------------
-    # DESTINATION UPDATE LOGIC
-    # --------------------------------------------------
-    def updateNavigatingStatus(self, cl):
-
-
-        if self.potentialDestination == "Stop":
-            self.stop_navigation()
-            return
-
-        if self.potentialDestination and cl:
-
-            # Only initialize once
-            if not self.map_nav:
-                self.map_nav = MapNavigator(cl)
-                self.nav_agent = Navigation(self.map_nav, mode=self.mode)
-
-            # Only restart if destination changes
-            if self.potentialDestination != self.destination:
-                self.setDestination(self.potentialDestination)
-                self.startNavigation()
-
-    # --------------------------------------------------
-    # MAIN LOOP
-    # --------------------------------------------------
-    def run(self):
-        print("[Supervisor] Running main loop")
-        while True:
-
-            # start = time.time()
-
-            # cl = self.read_gps()
-            # if cl is None:
-            #     time.sleep(0.2)
-            #     continue
-
-            # # Initialize map navigator once GPS is ready
-            # if not self.map_nav:
-            #     self.map_nav = MapNavigator(cl)
-            #     self.nav_agent = Navigation(self.map_nav, mode=self.mode)
-
-            # self.map_nav.updateCurrentLocation(cl)
-
-            # self.updateNavigatingStatus(cl)
-
-            # if self.navigating and self.nav_agent.path:
-
-            #     print("Current location:", cl)
-            #     print("Current index:", self.nav_agent.index)
-
-            #     state = self.nav_agent.navigate(cl)
-            #     self.stateMachine(state, cl)
-
-            # elapsed = time.time() - start
-            # time.sleep(max(0.0, self.period - elapsed))
-
-
 # --------------------------------------------------
 # RUN
 # --------------------------------------------------
 
 if __name__ == "__main__":
+
     ns = NavigationSupervisor()
-    ns.run()
+    ns.lock = threading.Lock()
+
+    # -------------------------
+    # GPS Thread
+    # -------------------------
+    def gps_loop():
+        while True:
+            with ns.lock:
+                ns.read_gps()
+            time.sleep(0.2)
+
+    # -------------------------
+    # Ultrasonic Thread
+    # -------------------------
+    def ultrasonic_loop():
+        while True:
+            with ns.lock:
+                ns.read_ultrasonic()
+            time.sleep(0.05)
+
+    # -------------------------
+    # Voice / Destination Thread
+    # -------------------------
+    def voice_loop():
+        while True:
+            ns.pipLineGetPath()
+            time.sleep(0.5)
+
+    # -------------------------
+    # Navigation Thread
+    # -------------------------
+    def navigation_loop():
+        while True:
+            with ns.lock:
+                ns.pipeLineStatusPath()
+                if ns.state:
+                    ns.stateMachine(ns.state)
+            time.sleep(0.5)
+
+    # Start all threads
+    threading.Thread(target=gps_loop, daemon=True).start()
+    threading.Thread(target=ultrasonic_loop, daemon=True).start()
+    threading.Thread(target=voice_loop, daemon=True).start()
+    threading.Thread(target=navigation_loop, daemon=True).start()
+
+    # Keep main thread alive
+    while True:
+        time.sleep(1)

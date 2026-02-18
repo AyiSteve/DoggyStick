@@ -20,6 +20,14 @@ class Navigation:
         self.offroute_counter = 0
         self.wrong_dir_counter = 0
 
+    def updatePath(self):
+        self.map.updateDirection()
+        self.idex = 0
+        self.target = None
+        self.path = self.map.WalkPath
+        self.wrong_dir_counter = 0
+        self.offroute_counter = 0
+
     # --------------------------------------------------
     # Target update
     # --------------------------------------------------
@@ -27,22 +35,13 @@ class Navigation:
         if not self.path or len(self.path) == 0:
             raise RuntimeError("Navigation path not initialized")
 
-        if self.index >= len(self.path):
-            self.index = len(self.path) - 1
-            self.state = "DESTINATION_REACHED"
-            return
-
+        start = self.index
+        nearest_index = min(
+            range(start, len(self.path)),
+            key=lambda i: self.map.distance(self.map.currentLocation, self.path[i])
+        )
+        self.index = nearest_index
         self.target = self.path[self.index]
-
-    # --------------------------------------------------
-    # Heading estimation
-    # --------------------------------------------------
-    def gpsHeading(self, gps):
-        if self.prevGPS is None:
-            return None
-        return self.map.bearing(self.prevGPS, gps)
-
-
 
     def smoothGPS(self, gps):
         if self.prevGPS is None:
@@ -66,10 +65,7 @@ class Navigation:
         if move_dist < 1.0:
             return False
 
-        heading = self.gpsHeading(gps)
-        if heading is None:
-            return False
-
+        heading = self.map.bearing(self.prevGPS, gps)
         desired = self.map.bearing(gps, self.target)
 
         # Signed turn angle (-180 to 180)
@@ -88,36 +84,25 @@ class Navigation:
     # --------------------------------------------------
     # Off-route detection (windowed)
     # --------------------------------------------------
-    def offRoute(self, gps, max_dist=10.0):
-
+    def offRoute(self, gps, max_dist=15.0, window=30):
         if not self.path:
             return False
+        start = max(0, self.index - window)
+        end   = min(len(self.path), self.index + window + 1)
+        distance = min(self.map.distance(gps, self.path[i]) for i in range(start, end))
+        return distance > max_dist
 
-        # Only search nearby forward window
-        search_start = max(0, self.index - 5)
-        search_end = min(len(self.path), self.index + 20)
+    def targetReached(self,gps):
+        dist_to_target = self.map.distance(gps, self.target)
 
-        nearest = min(
-            self.map.distance(gps, self.path[i])
-            for i in range(search_start, search_end)
-        )
-
-        if nearest > max_dist:
-            self.offroute_counter += 1
-        else:
-            self.offroute_counter = 0
-
-        return self.offroute_counter >= 4
-    # --------------------------------------------------
-    # Turn angle computation
-    # --------------------------------------------------
-    def computeTurnAngle(self, gps):
-        heading = self.gpsHeading(gps)
-        if heading is None or self.target is None:
-            return None
-
-        desired = self.map.bearing(gps, self.target)
-        return (desired - heading + 540) % 360 - 180
+        if dist_to_target < 5.0:
+            if self.index < len(self.path) - 1:
+                self.state = "TARGET_REACHED"
+                self.index+=1
+            else:
+                self.state = "DESTINATION_REACHED"
+            return True
+        return False
 
     # --------------------------------------------------
     # MAIN NAVIGATION LOOP
@@ -138,37 +123,19 @@ class Navigation:
             return self.state
 
         # --------------------------------------------------
-        # FORWARD-ONLY SNAPPING (small window)
-        # --------------------------------------------------
-        search_start = self.index
-        search_end = min(len(self.path), self.index + 3)
-
-        nearest_index = min(
-            range(search_start, search_end),
-            key=lambda i: self.map.distance(gps, self.path[i])
-        )
-
-        self.index = nearest_index
-        self.updateTarget()
-
-        # --------------------------------------------------
         # WAYPOINT REACH CHECK
         # --------------------------------------------------
-        dist_to_target = self.map.distance(gps, self.target)
 
-        if dist_to_target < 5.0:
-            if self.index < len(self.path) - 1:
-                self.index += 1
-                self.updateTarget()
-            else:
-                self.state = "DESTINATION_REACHED"
-                return self.state
+        if self.targetReached(gps):
+            self.updateTarget()
 
         # --------------------------------------------------
         # WRONG DIRECTION
         # --------------------------------------------------
         if self.checkDirection(gps, speed_mps):
-            self.turn_angle = self.computeTurnAngle(gps)
+            heading = self.map.bearing(self.prevGPS, gps)
+            desired = self.map.bearing(gps, self.target)
+            self.turn_angle = (desired - heading + 540) % 360 - 180
             self.state = "WRONG_DIRECTION"
         else:
             self.turn_angle = 0.0

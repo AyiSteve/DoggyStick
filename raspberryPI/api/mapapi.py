@@ -82,48 +82,43 @@ class MapNavigator:
     def getCurrentPathTransit(self, n):
         return self.TransitPath[n]
     
-    def distance(self, p1, p2):
-        return geodesic(p1, p2).meters
+    # Return the meters between two point
+    def distance(self, p1, p2, radius = 6371000):
+        lat1 = math.radians(p1[0])
+        lat2 = math.radians(p2[0])
+        long1 = math.radians(p1[1])
+        long2 = math.radians(p2[1])
+        x = (long2-long1)*math.cos(((lat2+lat1))/2)
+        y = lat2-lat1
+        return math.sqrt(x*x + y*y) * radius
 
     def bearing(self, p1, p2):
         # Convert to radians frin degrees
-        lat1, lon1 = map(math.radians, p1)
-        lat2, lon2 = map(math.radians, p2)
+        lat1 = math.radians(p1[0])
+        lat2 = math.radians(p2[0])
+        long1 = math.radians(p1[1])
+        long2 = math.radians(p2[1])
 
         # Differences between two point
-        dlon = lon2 - lon1
+        dlon = long2 - long1
 
-        # East-West Component of direction
-        x = math.sin(dlon) * math.cos(lat2)
+        initial_bearing = math.atan2(math.sin(dlon)*math.cos(lat2), math.cos(lat1)*math.sin(lat2)-math.sin(lat1)*math.cos(lat2)*math.cos(dlon))
+        bearing = (math.degrees(initial_bearing) + 360) % 360
+        return bearing
 
-        # North-South component of direction
-        y = math.cos(lat1)*math.sin(lat2) - math.sin(lat1)*math.cos(lat2)*math.cos(dlon)
 
-        # Computes the angle of the direction vector relative to North
-        # Normalize result to 0-360
-        return (math.degrees(math.atan2(x, y)) + 360) % 360
-
-    def computeTurnAngle(self, gps):
-        heading = self.gpsHeading(gps)
-        if heading is None or self.target is None:
-            return None
-
-        desired = self.map.bearing(gps, self.target)
-        turn = (desired - heading + 540) % 360 - 180
-        return turn
-
-    def recalculateRoute(self, current_position):
+    def recalculateRoute(self):
         """
         Recalculate walking route from current GPS to existing destination.
         """
-        self.updateCurrentLocation(current_position)
-        self.updateDirection()   # This rebuilds WalkPath
+        self.updateCurrentLocation(self.currentLocation)
+        self.updateDirection()
 
         return self.WalkPath
     
     def text_search(self, query):
         if (query == None):
-            return
+            return []
         lat, lng = self.currentLocation
         print(self.currentLocation)
         url = "https://places.googleapis.com/v1/places:searchText"
