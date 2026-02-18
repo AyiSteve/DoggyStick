@@ -42,6 +42,7 @@ class Navigation:
         )
         self.index = nearest_index
         self.target = self.path[self.index]
+        print(self.index)
 
     def smoothGPS(self, gps):
         if self.prevGPS is None:
@@ -84,7 +85,7 @@ class Navigation:
     # --------------------------------------------------
     # Off-route detection (windowed)
     # --------------------------------------------------
-    def offRoute(self, gps, max_dist=15.0, window=30):
+    def offRoute(self, gps, max_dist=40.0, window=30):
         if not self.path:
             return False
         start = max(0, self.index - window)
@@ -93,8 +94,9 @@ class Navigation:
         return distance > max_dist
 
     def targetReached(self,gps):
+        print("current", gps)
         dist_to_target = self.map.distance(gps, self.target)
-
+        print(dist_to_target)
         if dist_to_target < 5.0:
             if self.index < len(self.path) - 1:
                 self.state = "TARGET_REACHED"

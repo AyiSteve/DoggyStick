@@ -51,10 +51,11 @@ class NavigationSupervisor:
     def read_gps(self):
         self.gps.read()
         position = self.nav_agent.smoothGPS(self.gps.get_position())
-        self.map_nav.updateCurrentLocation(position)
+        self.map_nav.updateCurrentLocation((47.58746467908628, -122.14825468421623))
 
     def read_ultrasonic(self):
         self.ultrasonicLine = self.stm32.readline()
+        print(ns.ultrasonicLine)
 
     def send_angleServo(self, angle):
         self.stm32.send(angle)
@@ -63,7 +64,8 @@ class NavigationSupervisor:
     def pipLineGetPath(self, numPlace=5):
 
         text = self.read_Mic()
-
+        print(text)
+        print(self.map_nav.currentLocation)
         if text is None or self.map_nav.currentLocation is None:
             return
 
@@ -103,7 +105,6 @@ class NavigationSupervisor:
 
     def pipeLineStatusPath(self):
         if self.map_nav.currentLocation == None or self.nav_agent.path == None:
-            print("Can't Navigate with No GPS and PATH")
             return
         
         if self.navigating:
@@ -200,11 +201,13 @@ if __name__ == "__main__":
             time.sleep(0.5)
 
     # Start all threads
-    threading.Thread(target=gps_loop, daemon=True).start()
-    threading.Thread(target=ultrasonic_loop, daemon=True).start()
-    threading.Thread(target=voice_loop, daemon=True).start()
-    threading.Thread(target=navigation_loop, daemon=True).start()
+    # threading.Thread(target=gps_loop, daemon=True).start()
+    # threading.Thread(target=ultrasonic_loop, daemon=True).start()
+    # threading.Thread(target=voice_loop, daemon=True).start()
+    # threading.Thread(target=navigation_loop, daemon=True).start()
 
+
+    
     # Keep main thread alive
     while True:
         time.sleep(1)

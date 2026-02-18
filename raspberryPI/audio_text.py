@@ -60,4 +60,3 @@ def audio_text(wav_path: str) -> str:
     # python3 -c "from stt import audio_text; print(audio_text('test16.wav', 'vosk-model-small-en-us-0.15'))""
 
     # two microphone
-    print(audio_text("command.wav"))

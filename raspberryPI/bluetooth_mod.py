@@ -40,3 +40,12 @@ class BluetoothUART:
             self.ser =None
             subprocess.run(["sudo", "rfcomm", "release", str(self.rfcomm_port)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+# Un Comment to test send servo
+# bt = BluetoothUART()
+# bt.connect()
+# while True:
+#     for i in [0, 45, 90, 180]:
+#         bt.send(i)
+#         print(i)
+#         time.sleep(5)
