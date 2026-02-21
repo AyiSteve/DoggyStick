@@ -6,6 +6,7 @@ import threading
 from mygps import myGPS
 from bluetooth_mod import BluetoothUART
 from button_recorder import VoiceRecordButton
+from server import start_debug_server
 
 class NavigationSupervisor:
     def __init__(self, mode="walk", period=1.0):
@@ -204,7 +205,12 @@ if __name__ == "__main__":
     # threading.Thread(target=ultrasonic_loop, daemon=True).start()
     threading.Thread(target=voice_loop, daemon=True).start()
     threading.Thread(target=navigation_loop, daemon=True).start()
-
+    # Debug web server (runs in background)
+    threading.Thread(
+        target=start_debug_server,
+        args=(ns, "0.0.0.0", 8080),   # 0.0.0.0 lets you view from another device on same WiFi
+        daemon=True
+    ).start()
 
     
     # Keep main thread alive
