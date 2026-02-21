@@ -1,171 +1,174 @@
-import googlemaps
-from geopy.distance import geodesic
-import math
-import polyline
-import requests
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse, parse_qs
 
-gmaps = googlemaps.Client(key="AIzaSyDipGnBuSsmfubof6qHdRn-dKliz9MVzrA")
+def start_debug_server(ns, host="0.0.0.0", port=8080):
 
-# This library connect with the google map api and ask for path from current to destination.
-# Two type of path that can be explained: transit and walk
-class MapNavigator:
-    def __init__(self, current):
-        self.currentLocation = current
-        self.destination = None
-        self.path = []
+    class Handler(BaseHTTPRequestHandler):
 
-        self.directionsTransit = None
-        self.directionsWalk = None
-        self.WalkPath = None
-        self.TransitPath = None
+        def send_json(self, data):
+            body = json.dumps(data, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
-    def updateDestination(self, intendedDestination):
-        self.destination = intendedDestination
+        def send_text(self, text, code=200):
+            body = text.encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
-    def updateCurrentLocation(self, current):
-        self.currentLocation = current
+        def do_GET(self):
+            parsed = urlparse(self.path)
+            path = parsed.path
+            qs = parse_qs(parsed.query)
 
-    def updateDirection(self):
-        print(self.currentLocation)
-        if self.currentLocation is None or self.destination is None:
-            print("MapNavigator: missing origin or destination")
-            return
-        self.directionsWalk = gmaps.directions(
-            origin = self.currentLocation,
-            destination = self.destination,
-            mode = "walking"
-        )
+            # ----------------------------
+            # STATE JSON
+            # ----------------------------
+            if path == "/state":
+                with ns.lock:
+                    nav = ns.nav_agent
+                    mp = ns.map_nav
 
-        #self.directionsTransit = gmaps.directions(
-        #     origin = self.currentLocation,
-        #     destination = self.destination,
-        #     mode = "transit"
-        # )
+                    snapshot = {
+                        "MapNavigator": {
+                            "currentLocation": mp.currentLocation,
+                            "destination": mp.destination,
+                            "WalkPath_length": len(nav.path) if nav.path else 0
+                        },
+                        "Navigation": {
+                            "state": ns.state,
+                            "mode": nav.mode,
+                            "index": nav.index,
+                            "target": nav.target,
+                            "turn_angle": nav.turn_angle,
+                            "wrong_dir_counter": nav.wrong_dir_counter,
+                            "offroute_counter": nav.offroute_counter,
+                            "prevGPS": nav.prevGPS
+                        },
+                        "System": {
+                            "navigating": ns.navigating,
+                            "ultrasonic": ns.ultrasonicLine
+                        }
+                    }
 
-        steps = self.directionsWalk[0]["legs"][0]["steps"]
-        self.WalkPath = []
+                self.send_json(snapshot)
+                return
 
-        for step in steps:
-            decoded = polyline.decode(step["polyline"]["points"])
-            for point in decoded:
-                self.WalkPath.append(point)
+            # ----------------------------
+            # SET PARAMETERS
+            # ----------------------------
+            if path == "/set":
+                if not qs:
+                    self.send_text("Missing parameter", 400)
+                    return
 
-        print(steps)
-        #steps = self.directionsTransit[0]["legs"][0]["steps"]
-        #self.TransitPath = []
-        #for step in steps:
-            # start = step["start_location"]
-            # end = step["end_location"]
-            # self.TransitPath.append((start["lat"], start["lng"]))
-            # self.TransitPath.append((end["lat"], end["lng"]))
-       
+                key = list(qs.keys())[0]
+                value = qs[key][0]
 
-    def getDistanceWalk(self):
+                with ns.lock:
+                    nav = ns.nav_agent
+                    mp = ns.map_nav
 
-        leg = self.directionsWalk[0]["legs"][0]
-        distance = leg["distance"]["text"]
-        duration = leg["duration"]["text"]
+                    try:
+                        if key == "destination":
+                            lat, lng = map(float, value.split(","))
+                            mp.updateDestination((lat, lng))
+                            nav.updatePath()
+                            ns.navigating = True
+                            self.send_text("Destination updated")
 
-        return distance, duration
-    
-    def getDistanceTransit(self):
+                        elif key == "navigating":
+                            ns.navigating = value == "1"
+                            self.send_text("Navigation toggled")
 
-        leg = self.directionsTransit[0]["legs"][0]
-        distance = leg["distance"]["text"]
-        duration = leg["duration"]["text"]
+                        elif key == "recalculate":
+                            nav.updatePath()
+                            self.send_text("Route recalculated")
 
-        return distance, duration
-    
-    def getCurrentPathWalk(self, n):
-        return self.WalkPath[n]
-    
-    def getCurrentPathTransit(self, n):
-        return self.TransitPath[n]
-    
-    # Return the meters between two point
-    def distance(self, p1, p2, radius = 6371000):
-        lat1 = math.radians(p1[0])
-        lat2 = math.radians(p2[0])
-        long1 = math.radians(p1[1])
-        long2 = math.radians(p2[1])
-        x = (long2-long1)*math.cos(((lat2+lat1))/2)
-        y = lat2-lat1
-        return math.sqrt(x*x + y*y) * radius
+                        else:
+                            self.send_text("Unknown parameter", 400)
 
-    def bearing(self, p1, p2):
-        # Convert to radians frin degrees
-        lat1 = math.radians(p1[0])
-        lat2 = math.radians(p2[0])
-        long1 = math.radians(p1[1])
-        long2 = math.radians(p2[1])
+                    except Exception as e:
+                        self.send_text(str(e), 400)
 
-        # Differences between two point
-        dlon = long2 - long1
+                return
 
-        initial_bearing = math.atan2(math.sin(dlon)*math.cos(lat2), math.cos(lat1)*math.sin(lat2)-math.sin(lat1)*math.cos(lat2)*math.cos(dlon))
-        bearing = (math.degrees(initial_bearing) + 360) % 360
-        return bearing
+            # ----------------------------
+            # UI PAGE
+            # ----------------------------
+            if path == "/" or path == "/ui":
+                html = """
+                <html>
+                <head>
+                <title>DoggyStick Control</title>
+                <style>
+                body { background:#1e1e1e; color:#eee; font-family:Arial; padding:20px;}
+                h2 { border-bottom:1px solid #444; }
+                pre { background:#111; padding:15px; border-radius:10px; }
+                input { padding:8px; margin:5px; border-radius:8px; border:none;}
+                button { padding:8px 15px; border-radius:8px; border:none; cursor:pointer;}
+                button:hover { opacity:0.8; }
+                .box { margin-bottom:20px; }
+                </style>
+                </head>
+                <body>
 
+                <h1>🚗 DoggyStick Debug Panel</h1>
 
-    def recalculateRoute(self):
-        """
-        Recalculate walking route from current GPS to existing destination.
-        """
-        self.updateCurrentLocation(self.currentLocation)
-        self.updateDirection()
+                <div class="box">
+                <h2>Live State</h2>
+                <pre id="state">Loading...</pre>
+                </div>
 
-        return self.WalkPath
-    
-    def text_search(self, query):
-        if (query == None):
-            return []
-        lat, lng = self.currentLocation
-        print(self.currentLocation)
-        url = "https://places.googleapis.com/v1/places:searchText"
+                <div class="box">
+                <h2>Set Destination</h2>
+                <input id="dest" placeholder="47.5843,-122.1481">
+                <button onclick="setParam('destination', dest.value)">Set</button>
+                </div>
 
-        headers = {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": "AIzaSyDipGnBuSsmfubof6qHdRn-dKliz9MVzrA",
-            "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location"
-        }
+                <div class="box">
+                <h2>Navigation Control</h2>
+                <button onclick="setParam('navigating','1')">Start</button>
+                <button onclick="setParam('navigating','0')">Stop</button>
+                <button onclick="setParam('recalculate','1')">Recalculate Route</button>
+                </div>
 
-        body = {
-            "textQuery": query,
-            "locationBias": {
-                "circle": {
-                    "center": {
-                        "latitude": lat,
-                        "longitude": lng
-                    },
-                    "radius": 5000
+                <script>
+                async function refresh(){
+                    const r = await fetch('/state');
+                    const j = await r.json();
+                    document.getElementById('state').innerText =
+                        JSON.stringify(j,null,2);
                 }
-            }
-        }
 
-        response = requests.post(url, headers=headers, json=body)
+                async function setParam(k,v){
+                    await fetch('/set?'+k+'='+encodeURIComponent(v));
+                    refresh();
+                }
 
-        if response.status_code == 200:
-            return response.json().get("places", [])
-        else:
-            print("Error:", response.text)
-            return []
-        
-#import googlemaps
+                setInterval(refresh,1000);
+                refresh();
+                </script>
 
-#API_KEY = "YOUR_API_KEY_HERE"
-#gmaps = googlemaps.Client(key=API_KEY)
+                </body>
+                </html>
+                """
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(html.encode("utf-8"))
+                return
 
-#directions = gmaps.directions(
-#    origin=(47.653785, -122.308408),
-#    destination="Seattle Public Library",
-#    mode="walking"
-#)
+            self.send_text("Not Found", 404)
 
-#steps = directions[0]["legs"][0]["steps"]
+        def log_message(self, format, *args):
+            return
 
-#print("directions")
-#for i, step in enumerate(steps):
-#    instruction = step["html_instructions"]
-#    distance = step["distance"]["text"]
-#    duration = step["duration"]["text"]
-#    print(f"{i+1}. {instruction} ({distance}, {duration})")
+    print(f"[WEB] Running at http://{host}:{port}/ui")
+    HTTPServer((host, port), Handler).serve_forever()
