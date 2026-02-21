@@ -6,19 +6,30 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
 
     class Handler(BaseHTTPRequestHandler):
 
-        def _send(self, code, content_type, body):
-            body_bytes = body.encode("utf-8")
-            self.send_response(code)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(body_bytes)))
+        def send_json(self, data):
+            body = json.dumps(data, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(body_bytes)
+            self.wfile.write(body)
+
+        def send_text(self, text, code=200):
+            body = text.encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
         def do_GET(self):
             parsed = urlparse(self.path)
             path = parsed.path
             qs = parse_qs(parsed.query)
 
+            # ----------------------------
+            # STATE JSON
+            # ----------------------------
             if path == "/state":
                 with ns.lock:
                     nav = ns.nav_agent
@@ -28,7 +39,7 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                         "MapNavigator": {
                             "currentLocation": mp.currentLocation,
                             "destination": mp.destination,
-                            "path_len": len(nav.path) if nav.path else 0
+                            "WalkPath_length": len(nav.path) if nav.path else 0
                         },
                         "Navigation": {
                             "state": ns.state,
@@ -38,19 +49,25 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                             "turn_angle": nav.turn_angle,
                             "wrong_dir_counter": nav.wrong_dir_counter,
                             "offroute_counter": nav.offroute_counter,
-                            "offroute_max_dist": nav.offroute_max_dist,
-                            "offroute_window": nav.offroute_window,
-                            "target_reached_dist": nav.target_reached_dist,
-                            "wrong_dir_threshold_low": nav.wrong_dir_threshold_low,
-                            "wrong_dir_threshold_high": nav.wrong_dir_threshold_high,
-                            "navigating": ns.navigating
+                            "prevGPS": nav.prevGPS
+                        },
+                        "System": {
+                            "navigating": ns.navigating,
+                            "ultrasonic": ns.ultrasonicLine
                         }
                     }
 
-                self._send(200, "application/json", json.dumps(snapshot, indent=2))
+                self.send_json(snapshot)
                 return
 
+            # ----------------------------
+            # SET PARAMETERS
+            # ----------------------------
             if path == "/set":
+                if not qs:
+                    self.send_text("Missing parameter", 400)
+                    return
+
                 key = list(qs.keys())[0]
                 value = qs[key][0]
 
@@ -64,74 +81,77 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                             mp.updateDestination((lat, lng))
                             nav.updatePath()
                             ns.navigating = True
-
-                        elif hasattr(nav, key):
-                            setattr(nav, key, type(getattr(nav, key))(value))
+                            self.send_text("Destination updated")
 
                         elif key == "navigating":
                             ns.navigating = value == "1"
+                            self.send_text("Navigation toggled")
+
+                        elif key == "recalculate":
+                            nav.updatePath()
+                            self.send_text("Route recalculated")
 
                         else:
-                            return self._send(400, "text/plain", "Unknown parameter")
+                            self.send_text("Unknown parameter", 400)
 
                     except Exception as e:
-                        return self._send(400, "text/plain", str(e))
+                        self.send_text(str(e), 400)
 
-                self._send(200, "text/plain", "Updated")
                 return
 
+            # ----------------------------
+            # UI PAGE
+            # ----------------------------
             if path == "/" or path == "/ui":
                 html = """
                 <html>
                 <head>
-                <title>DoggyStick Control Panel</title>
+                <title>DoggyStick Control</title>
                 <style>
-                body { font-family: Arial; background:#1e1e1e; color:white; padding:20px;}
+                body { background:#1e1e1e; color:#eee; font-family:Arial; padding:20px;}
                 h2 { border-bottom:1px solid #444; }
                 pre { background:#111; padding:15px; border-radius:10px; }
-                input { padding:6px; margin:4px; border-radius:6px;}
-                button { padding:6px 12px; border-radius:6px;}
+                input { padding:8px; margin:5px; border-radius:8px; border:none;}
+                button { padding:8px 15px; border-radius:8px; border:none; cursor:pointer;}
+                button:hover { opacity:0.8; }
+                .box { margin-bottom:20px; }
                 </style>
                 </head>
                 <body>
 
-                <h2>Live State</h2>
-                <pre id="out">Loading...</pre>
+                <h1>🚗 DoggyStick Debug Panel</h1>
 
+                <div class="box">
+                <h2>Live State</h2>
+                <pre id="state">Loading...</pre>
+                </div>
+
+                <div class="box">
                 <h2>Set Destination</h2>
                 <input id="dest" placeholder="47.5843,-122.1481">
-                <button onclick="setParam('destination', document.getElementById('dest').value)">Set</button>
+                <button onclick="setParam('destination', dest.value)">Set</button>
+                </div>
 
-                <h2>Navigation Parameters</h2>
-                <input id="offdist" placeholder="offroute_max_dist">
-                <button onclick="setParam('offroute_max_dist', offdist.value)">Update</button>
-
-                <input id="window" placeholder="offroute_window">
-                <button onclick="setParam('offroute_window', window.value)">Update</button>
-
-                <input id="targetdist" placeholder="target_reached_dist">
-                <button onclick="setParam('target_reached_dist', targetdist.value)">Update</button>
-
-                <input id="wronglow" placeholder="wrong_dir_threshold_low">
-                <button onclick="setParam('wrong_dir_threshold_low', wronglow.value)">Update</button>
-
-                <input id="wronghigh" placeholder="wrong_dir_threshold_high">
-                <button onclick="setParam('wrong_dir_threshold_high', wronghigh.value)">Update</button>
-
+                <div class="box">
                 <h2>Navigation Control</h2>
-                <button onclick="setParam('navigating', '1')">Start</button>
-                <button onclick="setParam('navigating', '0')">Stop</button>
+                <button onclick="setParam('navigating','1')">Start</button>
+                <button onclick="setParam('navigating','0')">Stop</button>
+                <button onclick="setParam('recalculate','1')">Recalculate Route</button>
+                </div>
 
                 <script>
                 async function refresh(){
-                    let r = await fetch('/state');
-                    let j = await r.json();
-                    document.getElementById('out').innerText = JSON.stringify(j,null,2);
+                    const r = await fetch('/state');
+                    const j = await r.json();
+                    document.getElementById('state').innerText =
+                        JSON.stringify(j,null,2);
                 }
+
                 async function setParam(k,v){
                     await fetch('/set?'+k+'='+encodeURIComponent(v));
                     refresh();
                 }
+
                 setInterval(refresh,1000);
                 refresh();
                 </script>
@@ -139,13 +159,16 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                 </body>
                 </html>
                 """
-                self._send(200, "text/html", html)
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(html.encode("utf-8"))
                 return
 
-            self._send(404, "text/plain", "Not Found")
+            self.send_text("Not Found", 404)
 
         def log_message(self, format, *args):
             return
 
-    print(f"[WEB] Running on http://{host}:{port}/ui")
+    print(f"[WEB] Running at http://{host}:{port}/ui")
     HTTPServer((host, port), Handler).serve_forever()
