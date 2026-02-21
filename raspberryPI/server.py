@@ -2,67 +2,12 @@ import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 
-def build_snapshot(ns):
-    """
-    Return a JSON-serializable snapshot of important runtime fields.
-    Keep this small + safe (no huge objects).
-    """
-    nav = ns.nav_agent
-    mp = ns.map_nav
+def start_debug_server(ns, host="0.0.0.0", port=8080):
 
-    snap = {
-        "navigating": ns.navigating,
-        "state": ns.state,
-        "ultrasonicLine": ns.ultrasonicLine,
-
-        "gps_current": mp.currentLocation,
-        "destination": mp.destination,
-
-        "nav_index": getattr(nav, "index", None),
-        "nav_target": getattr(nav, "target", None),
-        "turn_angle": getattr(nav, "turn_angle", None),
-        "wrong_dir_counter": getattr(nav, "wrong_dir_counter", None),
-        "offroute_counter": getattr(nav, "offroute_counter", None),
-
-        "path_len": (len(nav.path) if nav.path else 0),
-    }
-    return snap
-
-
-def try_set_param(ns, key, value):
-    """
-    Very small 'setter' interface for debugging.
-    Add/remove fields as you need.
-    """
-    if key == "navigating":
-        # /set?navigating=1 or 0
-        ns.navigating = value in ("1", "true", "True", "yes", "on")
-        return True, f"navigating set to {ns.navigating}"
-
-    if key == "destination":
-        # /set?destination=47.5843,-122.1481
-        parts = value.split(",")
-        if len(parts) != 2:
-            return False, "destination must be 'lat,lng'"
-        lat = float(parts[0].strip())
-        lng = float(parts[1].strip())
-        ns.map_nav.updateDestination((lat, lng))
-        # IMPORTANT: build a path immediately
-        ns.nav_agent.updatePath()
-        ns.navigating = True
-        return True, f"destination set to ({lat},{lng}) and path updated"
-
-    if key == "offroute_max":
-        # example: if you later add nav.offroute_max
-        # nav.offroute_max = float(value)
-        return False, "offroute_max not implemented in your Navigation class yet"
-
-    return False, f"Unknown param '{key}'"
-
-
-def start_debug_server(ns, host="127.0.0.1", port=8080):
     class Handler(BaseHTTPRequestHandler):
-        def _send(self, code, content_type, body_bytes):
+
+        def _send(self, code, content_type, body):
+            body_bytes = body.encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body_bytes)))
@@ -74,101 +19,133 @@ def start_debug_server(ns, host="127.0.0.1", port=8080):
             path = parsed.path
             qs = parse_qs(parsed.query)
 
-            if path == "/" or path == "/ui":
-                html = f"""<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>DoggyStick Debug</title>
-  <style>
-    body {{ font-family: system-ui, -apple-system, Arial; margin: 16px; }}
-    pre {{ background: #111; color: #0f0; padding: 12px; border-radius: 10px; overflow:auto; }}
-    .row {{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }}
-    input {{ padding:8px; border-radius:8px; border:1px solid #ccc; }}
-    button {{ padding:8px 12px; border-radius:8px; border:1px solid #ccc; cursor:pointer; }}
-    small {{ color:#555; }}
-  </style>
-</head>
-<body>
-  <h2>DoggyStick Debug Dashboard</h2>
-  <div class="row">
-    <button onclick="refresh()">Refresh</button>
-    <small>Auto-refresh every 1s</small>
-  </div>
-
-  <h3>Set destination</h3>
-  <div class="row">
-    <input id="dest" placeholder="lat,lng  (e.g. 47.5843,-122.1481)" size="40" />
-    <button onclick="setDest()">Set</button>
-  </div>
-
-  <h3>Toggle navigating</h3>
-  <div class="row">
-    <button onclick="setNav(1)">Start</button>
-    <button onclick="setNav(0)">Stop</button>
-  </div>
-
-  <h3>Snapshot</h3>
-  <pre id="out">loading...</pre>
-
-<script>
-async function refresh() {{
-  const r = await fetch('/state');
-  const j = await r.json();
-  document.getElementById('out').textContent = JSON.stringify(j, null, 2);
-}}
-
-async function setNav(v) {{
-  const r = await fetch(`/set?navigating=${{v}}`);
-  await refresh();
-}}
-
-async function setDest() {{
-  const v = document.getElementById('dest').value.trim();
-  if (!v) return;
-  await fetch(`/set?destination=${{encodeURIComponent(v)}}`);
-  await refresh();
-}}
-
-refresh();
-setInterval(refresh, 1000);
-</script>
-</body>
-</html>"""
-                self._send(200, "text/html; charset=utf-8", html.encode("utf-8"))
-                return
-
             if path == "/state":
                 with ns.lock:
-                    snap = build_snapshot(ns)
-                body = json.dumps(snap, indent=2).encode("utf-8")
-                self._send(200, "application/json; charset=utf-8", body)
+                    nav = ns.nav_agent
+                    mp = ns.map_nav
+
+                    snapshot = {
+                        "MapNavigator": {
+                            "currentLocation": mp.currentLocation,
+                            "destination": mp.destination,
+                            "path_len": len(nav.path) if nav.path else 0
+                        },
+                        "Navigation": {
+                            "state": ns.state,
+                            "mode": nav.mode,
+                            "index": nav.index,
+                            "target": nav.target,
+                            "turn_angle": nav.turn_angle,
+                            "wrong_dir_counter": nav.wrong_dir_counter,
+                            "offroute_counter": nav.offroute_counter,
+                            "offroute_max_dist": nav.offroute_max_dist,
+                            "offroute_window": nav.offroute_window,
+                            "target_reached_dist": nav.target_reached_dist,
+                            "wrong_dir_threshold_low": nav.wrong_dir_threshold_low,
+                            "wrong_dir_threshold_high": nav.wrong_dir_threshold_high,
+                            "navigating": ns.navigating
+                        }
+                    }
+
+                self._send(200, "application/json", json.dumps(snapshot, indent=2))
                 return
 
             if path == "/set":
-                # /set?param=value  (we accept exactly one)
-                if not qs:
-                    self._send(400, "text/plain; charset=utf-8", b"Missing query param\n")
-                    return
-
-                # take first key/value
-                key = next(iter(qs.keys()))
+                key = list(qs.keys())[0]
                 value = qs[key][0]
 
                 with ns.lock:
-                    ok, msg = try_set_param(ns, key, value)
+                    nav = ns.nav_agent
+                    mp = ns.map_nav
 
-                code = 200 if ok else 400
-                self._send(code, "text/plain; charset=utf-8", (msg + "\n").encode("utf-8"))
+                    try:
+                        if key == "destination":
+                            lat, lng = map(float, value.split(","))
+                            mp.updateDestination((lat, lng))
+                            nav.updatePath()
+                            ns.navigating = True
+
+                        elif hasattr(nav, key):
+                            setattr(nav, key, type(getattr(nav, key))(value))
+
+                        elif key == "navigating":
+                            ns.navigating = value == "1"
+
+                        else:
+                            return self._send(400, "text/plain", "Unknown parameter")
+
+                    except Exception as e:
+                        return self._send(400, "text/plain", str(e))
+
+                self._send(200, "text/plain", "Updated")
                 return
 
-            self._send(404, "text/plain; charset=utf-8", b"Not found\n")
+            if path == "/" or path == "/ui":
+                html = """
+                <html>
+                <head>
+                <title>DoggyStick Control Panel</title>
+                <style>
+                body { font-family: Arial; background:#1e1e1e; color:white; padding:20px;}
+                h2 { border-bottom:1px solid #444; }
+                pre { background:#111; padding:15px; border-radius:10px; }
+                input { padding:6px; margin:4px; border-radius:6px;}
+                button { padding:6px 12px; border-radius:6px;}
+                </style>
+                </head>
+                <body>
+
+                <h2>Live State</h2>
+                <pre id="out">Loading...</pre>
+
+                <h2>Set Destination</h2>
+                <input id="dest" placeholder="47.5843,-122.1481">
+                <button onclick="setParam('destination', document.getElementById('dest').value)">Set</button>
+
+                <h2>Navigation Parameters</h2>
+                <input id="offdist" placeholder="offroute_max_dist">
+                <button onclick="setParam('offroute_max_dist', offdist.value)">Update</button>
+
+                <input id="window" placeholder="offroute_window">
+                <button onclick="setParam('offroute_window', window.value)">Update</button>
+
+                <input id="targetdist" placeholder="target_reached_dist">
+                <button onclick="setParam('target_reached_dist', targetdist.value)">Update</button>
+
+                <input id="wronglow" placeholder="wrong_dir_threshold_low">
+                <button onclick="setParam('wrong_dir_threshold_low', wronglow.value)">Update</button>
+
+                <input id="wronghigh" placeholder="wrong_dir_threshold_high">
+                <button onclick="setParam('wrong_dir_threshold_high', wronghigh.value)">Update</button>
+
+                <h2>Navigation Control</h2>
+                <button onclick="setParam('navigating', '1')">Start</button>
+                <button onclick="setParam('navigating', '0')">Stop</button>
+
+                <script>
+                async function refresh(){
+                    let r = await fetch('/state');
+                    let j = await r.json();
+                    document.getElementById('out').innerText = JSON.stringify(j,null,2);
+                }
+                async function setParam(k,v){
+                    await fetch('/set?'+k+'='+encodeURIComponent(v));
+                    refresh();
+                }
+                setInterval(refresh,1000);
+                refresh();
+                </script>
+
+                </body>
+                </html>
+                """
+                self._send(200, "text/html", html)
+                return
+
+            self._send(404, "text/plain", "Not Found")
 
         def log_message(self, format, *args):
-            # silence default request logs
             return
 
-    httpd = HTTPServer((host, port), Handler)
-    print(f"[WEB] Debug server running at http://{host}:{port}/ui")
-    httpd.serve_forever()
+    print(f"[WEB] Running on http://{host}:{port}/ui")
+    HTTPServer((host, port), Handler).serve_forever()
