@@ -19,10 +19,10 @@ class Navigation:
         self.turn_angle = 0.0
         self.offroute_counter = 0
         self.wrong_dir_counter = 0
-
+        self.dist_to_target = 0
     def updatePath(self):
         self.map.updateDirection()
-        self.idex = 0
+        self.index = 0
         self.target = None
         self.path = self.map.WalkPath
         self.wrong_dir_counter = 0
@@ -95,9 +95,9 @@ class Navigation:
 
     def targetReached(self,gps):
         print("current", gps)
-        dist_to_target = self.map.distance(gps, self.target)
-        print(dist_to_target)
-        if dist_to_target < 5.0:
+        self.dist_to_target = self.map.distance(gps, self.target)
+        print(self.dist_to_target)
+        if self.dist_to_target < 5.0:
             if self.index < len(self.path) - 1:
                 self.state = "TARGET_REACHED"
                 self.index+=1

@@ -14,6 +14,7 @@ class NavigationSupervisor:
         self.mode = mode
 
         self.gps = myGPS()
+        self.filtered_gps = None
 
         self.map_nav = MapNavigator(None)
         self.nav_agent = Navigation(self.map_nav)
@@ -51,8 +52,31 @@ class NavigationSupervisor:
     # This function will be run independently to update the current location
     def read_gps(self):
         self.gps.read()
-        #  position = self.nav_agent.smoothGPS(self.gps.get_position())
-        self.map_nav.updateCurrentLocation(self.gps.get_position())
+        pos = self.gps.get_position()
+
+        if pos is None:
+            self.map_nav.updateCurrentLocation(None)
+            return
+
+        lat, lon = pos
+
+        # First reading
+        if self.filtered_gps is None:
+            self.filtered_gps = (lat, lon)
+        else:
+            prev_lat, prev_lon = self.filtered_gps
+            alpha = 0.4
+
+            filt_lat = alpha * lat + (1 - alpha) * prev_lat
+            filt_lon = alpha * lon + (1 - alpha) * prev_lon
+
+            self.filtered_gps = (filt_lat, filt_lon)
+
+        # Optional: round AFTER filtering
+        smoothed = (round(self.filtered_gps[0], 6),
+                    round(self.filtered_gps[1], 6))
+
+        self.map_nav.updateCurrentLocation(smoothed)
 
     def read_ultrasonic(self):
         self.ultrasonicLine = self.stm32.readline()
@@ -170,7 +194,6 @@ if __name__ == "__main__":
         while True:
             with ns.lock:
                 ns.read_gps()
-            time.sleep(0.2)
 
     # -------------------------
     # Ultrasonic Thread
