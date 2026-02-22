@@ -125,10 +125,6 @@ class NavigationSupervisor:
     #         print("Invalid input. Please enter numeric values.")
     #         return None
 
-    def stop_navigation(self):
-        self.navigating = False
-        print("[Navigation Supervisor] Navigation Stopped")
-
     # --------------------------------------------------
     # STATE MACHINE OUTPUT
     # --------------------------------------------------
@@ -208,7 +204,7 @@ if __name__ == "__main__":
                 # time when follow is .0005ish
                 #time when nothing is input were 5us so where quick
                 ns.pipeLineStatusPath()
-                if ns.state:
+                if ns.state and ns.navigating:
                     # time take for the state machine were 30us...
                     ns.stateMachine(ns.state)
 
