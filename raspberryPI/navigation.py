@@ -52,15 +52,11 @@ class Navigation:
 
         move_dist = self.map.distance(self.map.filtered_gps, gps)
 
-        # Must move at least 2 meters
-        if move_dist < 1.0:
-            return False
-
         # Signed turn angle (-180 to 180)
-        turn = self.map.filtered_gps(self.target)
+        turn = self.map.turn_angle(self.target)
         error = abs(turn)
-
-        threshold = 10 if speed_mps < 1.2 else 30
+        
+        threshold = 10
 
         if error > threshold:
             self.wrong_dir_counter += 1

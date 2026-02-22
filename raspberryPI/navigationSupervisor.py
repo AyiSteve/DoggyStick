@@ -94,7 +94,7 @@ class NavigationSupervisor:
 
             if 0 <= index < len(result):
 
-                selected = result[index]
+                selected = result[0]
 
                 name = selected["displayName"]["text"]
 
