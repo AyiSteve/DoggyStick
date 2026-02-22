@@ -48,7 +48,7 @@ class Navigation:
     # --------------------------------------------------
     def checkDirection(self, gps, speed_mps):
 
-        if gps. is None:
+        if gps is None:
             return False
 
         move_dist = self.map.distance(self.prevGPS, gps)
@@ -57,11 +57,8 @@ class Navigation:
         if move_dist < 1.0:
             return False
 
-        heading = self.map.bearing(self.prevGPS, gps)
-        desired = self.map.bearing(gps, self.target)
-
         # Signed turn angle (-180 to 180)
-        turn = (desired - heading + 540) % 360 - 180
+        turn = self.map.filtered_gps(self.target)
         error = abs(turn)
 
         threshold = 35 if speed_mps < 1.2 else 30
