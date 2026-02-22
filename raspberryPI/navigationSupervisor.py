@@ -171,6 +171,7 @@ if __name__ == "__main__":
         while True:
             with ns.lock:
                 ns.read_gps()
+                time.sleep(0.5)
 
 
 
