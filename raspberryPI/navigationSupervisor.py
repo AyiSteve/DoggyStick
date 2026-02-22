@@ -131,7 +131,6 @@ class NavigationSupervisor:
         self.navigating = False
         print("[Navigation Supervisor] Navigation Stopped")
 
-
     # --------------------------------------------------
     # STATE MACHINE OUTPUT
     # --------------------------------------------------
@@ -147,9 +146,9 @@ class NavigationSupervisor:
         elif state == "WRONG_DIRECTION":
             angle = self.nav_agent.turn_angle
             if angle > 0:
-                print(f"Turn RIGHT {angle:.1f}�")
+                print(f"Turn RIGHT {angle:.1f}ï¿½")
             else:
-                print(f"Turn LEFT {abs(angle):.1f}�")
+                print(f"Turn LEFT {abs(angle):.1f}ï¿½")
 
         elif state == "OFF_ROUTE":
             self.nav_agent.updatePath()
@@ -159,7 +158,7 @@ class NavigationSupervisor:
         elif state == "DESTINATION_REACHED":
             print("[DONE] Destination reached ? stopping navigation")
             self.stop_navigation()
-
+            
 # --------------------------------------------------
 # RUN
 # --------------------------------------------------

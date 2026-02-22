@@ -12,7 +12,6 @@ class Navigation:
         self.target = None
         self.index = 0
 
-        self.prevGPS = None
         self.state = "FOLLOW_ROUTE"
         self.heading = None
 
@@ -44,20 +43,12 @@ class Navigation:
         self.target = self.path[self.index]
         print(self.index)
 
-    def smoothGPS(self, gps):
-        if self.prevGPS is None:
-            return gps
-
-        lat = (gps[0] + self.prevGPS[0]) / 2
-        lon = (gps[1] + self.prevGPS[1]) / 2
-        return (lat, lon)
-        
     # --------------------------------------------------
     # Wrong direction detection
     # --------------------------------------------------
     def checkDirection(self, gps, speed_mps):
 
-        if self.prevGPS is None:
+        if gps. is None:
             return False
 
         move_dist = self.map.distance(self.prevGPS, gps)
@@ -110,8 +101,8 @@ class Navigation:
     # MAIN NAVIGATION LOOP
     # --------------------------------------------------
     def navigate(self, gps, speed_mps=0.0):
-
-        if gps is None or not self.path:
+        prevLocation = self.map.filtered_gps
+        if prevLocation is None or not self.path:
             return self.state
 
         self.updateTarget()
@@ -121,7 +112,7 @@ class Navigation:
         # --------------------------------------------------
         if self.offRoute(gps):
             self.state = "OFF_ROUTE"
-            self.prevGPS = gps
+            prevLocation = gps
             return self.state
 
         # --------------------------------------------------
@@ -135,13 +126,10 @@ class Navigation:
         # WRONG DIRECTION
         # --------------------------------------------------
         if self.checkDirection(gps, speed_mps):
-            heading = self.map.bearing(self.prevGPS, gps)
-            desired = self.map.bearing(gps, self.target)
-            self.turn_angle = (desired - heading + 540) % 360 - 180
+            self.turn_angle = self.map.turn_angle(self.target)
             self.state = "WRONG_DIRECTION"
         else:
             self.turn_angle = 0.0
             self.state = "FOLLOW_ROUTE"
 
-        self.prevGPS = gps
         return self.state
