@@ -1,9 +1,7 @@
-from inference_sdk import InferenceHTTPClient
 import base64
-
 import os 
 from pprint import pprint
-
+import requests
 
 from typing import List, Dict, Any
 
@@ -16,9 +14,8 @@ class PedestrianLightDetector:
             api_url: str = "https://serverless.roboflow.com",
             min_confidence: float =0.40,
     ):
-        self.client  = InferenceHTTPClient(
-                api_url=api_url,
-                api_key=api_key)
+        self.api_key = api_key
+        self.api_url = api_url
         self.workspace_name = workspace_name
         self.workflow_id = workflow_id
         self.min_confidence = min_confidence
@@ -43,40 +40,35 @@ class PedestrianLightDetector:
         return []
     
     def classify_image(self, img_path: str) -> str:
-        "Return : pedestrain light, red light, unknown"
-        result = self.client.run_workflow(
-            workspace_name=self.workspace_name,
-            workflow_id=self.workflow_id,
-            images={"image": img_path},
-            use_cache=True
-        )
-        item = result[0] if isinstance(result, list) and result else result
+        url = f"https://detect.roboflow.com/pedestrian-traffic-light-3p4dd-zjeii/3?api_key={self.api_key}"
 
+        with open(img_path, "rb") as f:
+            response = requests.post(url, files={"file": f})
 
-        # remove the huge visualization field if present 
-        if not isinstance(item,dict):
+        if response.status_code != 200:
+            print("API Error:", response.text)
             return "unknown"
-        item.pop("visualization", None)
 
-        predictions = self.extract_predictions(item)
+        result = response.json()
+
+        predictions = result.get("predictions", [])
         if not predictions:
             return "unknown"
-        
-        # pick the highest confidence prediction 
-        best = max(predictions, key=lambda p : p.get("confidence",0))
+
+        best = max(predictions, key=lambda p: p.get("confidence", 0))
         conf = float(best.get("confidence", 0))
         raw_class = str(best.get("class", "")).lower()
 
         if conf < self.min_confidence:
             return "unknown"
-        
-        # needs to convert the name of the class and return pedestrian light/ red light 
+
         if "pedestrian" in raw_class:
             return "pedestrian light"
-        else: 
+        else:
             return "red light"
+            
 def main():
-    API_KEY = "33kWcCWTIdNOSMB0eTvR"
+    API_KEY = "3n6ywM5Jck752Comeagi"
     detector = PedestrianLightDetector(
         api_key=API_KEY,
         workspace_name="object-detection-phsdt",
@@ -84,7 +76,7 @@ def main():
         min_confidence=0.40
     )
 
-    img_path = "raspberryPI/object_det_test_picture/test2.png"
+    img_path = "/home/steve/Desktop/DoggyStick/DoggyStick/raspberryPI/object_det_test_picture/test2.png"
     label = detector.classify_image(img_path)
     print(label)
 
