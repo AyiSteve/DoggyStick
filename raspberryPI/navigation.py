@@ -41,7 +41,6 @@ class Navigation:
         )
         self.index = nearest_index
         self.target = self.path[self.index]
-        print(self.index)
 
     # --------------------------------------------------
     # Wrong direction detection
@@ -51,7 +50,7 @@ class Navigation:
         if gps is None:
             return False
 
-        move_dist = self.map.distance(self.prevGPS, gps)
+        move_dist = self.map.distance(self.map.filtered_gps, gps)
 
         # Must move at least 2 meters
         if move_dist < 1.0:
@@ -109,7 +108,6 @@ class Navigation:
         # --------------------------------------------------
         if self.offRoute(gps):
             self.state = "OFF_ROUTE"
-            prevLocation = gps
             return self.state
 
         # --------------------------------------------------

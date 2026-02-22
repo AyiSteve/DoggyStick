@@ -58,7 +58,7 @@ class NavigationSupervisor:
             self.map_nav.updateCurrentLocation(None)
             return
 
-        self.map_nav.updateCurrentLocation(self.gps.lowPassFilter(pos))
+        self.map_nav.updateCurrentLocation(self.map_nav.lowPassFilter(pos))
 
     def read_ultrasonic(self):
         self.ultrasonicLine = self.stm32.readline()
@@ -71,7 +71,6 @@ class NavigationSupervisor:
     def pipLineGetPath(self, numPlace=5):
 
         text = self.read_Mic()
-        print()
         if text is None or self.map_nav.currentLocation is None:
             return
 
@@ -107,7 +106,6 @@ class NavigationSupervisor:
                     self.navigating = True
                 print(f"Destination set: {name}")
                 print(f"Coordinates: ({lat}, {lng})")
-                
 
     def pipeLineStatusPath(self):
         if self.map_nav.currentLocation == None or self.nav_agent.path == None:
@@ -171,10 +169,13 @@ if __name__ == "__main__":
     # -------------------------
     # GPS Thread
     # -------------------------
+    # The period of the run is 0.6 second
     def gps_loop():
         while True:
             with ns.lock:
                 ns.read_gps()
+
+
 
     # -------------------------
     # Ultrasonic Thread
@@ -188,10 +189,14 @@ if __name__ == "__main__":
     # -------------------------
     # Voice / Destination Thread
     # -------------------------
+
+    # Period when not voice is .5
+    # period when voice is 3.69 including time to enter number
     def voice_loop():
         while True:
             ns.pipLineGetPath()
             time.sleep(0.5)
+
 
     # -------------------------
     # Navigation Thread
@@ -199,9 +204,14 @@ if __name__ == "__main__":
     def navigation_loop():
         while True:
             with ns.lock:
+                # Worst time were about
+                # time when follow is .0005ish
+                #time when nothing is input were 5us so where quick
                 ns.pipeLineStatusPath()
                 if ns.state:
+                    # time take for the state machine were 30us...
                     ns.stateMachine(ns.state)
+
             time.sleep(0.5)
 
     # Start all threads
