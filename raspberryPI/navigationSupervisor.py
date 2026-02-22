@@ -14,7 +14,6 @@ class NavigationSupervisor:
         self.mode = mode
 
         self.gps = myGPS()
-        self.filtered_gps = None
 
         self.map_nav = MapNavigator(None)
         self.nav_agent = Navigation(self.map_nav)
@@ -30,6 +29,7 @@ class NavigationSupervisor:
         self.voiceRecord = VoiceRecordButton()
 
         self.state = None
+
     def reset(self, destination):
         # keep same map_nav object
         self.map_nav.updateDestination(destination)
@@ -58,25 +58,7 @@ class NavigationSupervisor:
             self.map_nav.updateCurrentLocation(None)
             return
 
-        lat, lon = pos
-
-        # First reading
-        if self.filtered_gps is None:
-            self.filtered_gps = (lat, lon)
-        else:
-            prev_lat, prev_lon = self.filtered_gps
-            alpha = 0.4
-
-            filt_lat = alpha * lat + (1 - alpha) * prev_lat
-            filt_lon = alpha * lon + (1 - alpha) * prev_lon
-
-            self.filtered_gps = (filt_lat, filt_lon)
-
-        # Optional: round AFTER filtering
-        smoothed = (round(self.filtered_gps[0], 6),
-                    round(self.filtered_gps[1], 6))
-
-        self.map_nav.updateCurrentLocation(smoothed)
+        self.map_nav.updateCurrentLocation(self.gps.lowPassFilter(pos))
 
     def read_ultrasonic(self):
         self.ultrasonicLine = self.stm32.readline()

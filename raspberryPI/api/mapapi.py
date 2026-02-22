@@ -18,6 +18,7 @@ class MapNavigator:
         self.directionsWalk = None
         self.WalkPath = None
         self.TransitPath = None
+        self.filtered_gps = None
 
     def updateDestination(self, intendedDestination):
         self.destination = intendedDestination
@@ -116,6 +117,24 @@ class MapNavigator:
 
         return self.WalkPath
     
+    def lowPassFilter(self, pos):
+        lat, lon = pos
+
+        if self.filtered_gps is None:
+            self.filtered_gps = (lat, lon)
+        else:
+            prev_lat, prev_lon = self.filtered_gps
+            alpha = 0.4
+
+            filt_lat = alpha * lat + (1 - alpha) * prev_lat
+            filt_lon = alpha * lon + (1 - alpha) * prev_lon
+
+            self.filtered_gps = (filt_lat, filt_lon)
+
+        smoothed = (round(self.filtered_gps[0], 6),
+                    round(self.filtered_gps[1], 6))
+        return smoothed
+    
     def text_search(self, query):
         if (query == None):
             return []
@@ -169,3 +188,5 @@ class MapNavigator:
 #    distance = step["distance"]["text"]
 #    duration = step["duration"]["text"]
 #    print(f"{i+1}. {instruction} ({distance}, {duration})")
+
+print(MapNavigator.bearing((47.593106966899576,-122.14708596121382), (47.59321,-122.146886)))
