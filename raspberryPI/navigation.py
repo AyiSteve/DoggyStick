@@ -60,7 +60,7 @@ class Navigation:
         turn = self.map.filtered_gps(self.target)
         error = abs(turn)
 
-        threshold = 35 if speed_mps < 1.2 else 30
+        threshold = 10 if speed_mps < 1.2 else 30
 
         if error > threshold:
             self.wrong_dir_counter += 1

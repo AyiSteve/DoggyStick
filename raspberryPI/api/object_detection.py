@@ -2,22 +2,20 @@ import base64
 import os 
 from pprint import pprint
 import requests
-
+import time
 from typing import List, Dict, Any
 
 class PedestrianLightDetector:
     def __init__(
             self,
-            api_key: str,
-            workspace_name: str,
-            workflow_id: str,
+            api_key: str ="3n6ywM5Jck752Comeagi",
+            workspace_name: str = "pedestrian-traffic-light-3p4dd-zjeii/3",
             api_url: str = "https://serverless.roboflow.com",
             min_confidence: float =0.40,
     ):
         self.api_key = api_key
         self.api_url = api_url
         self.workspace_name = workspace_name
-        self.workflow_id = workflow_id
         self.min_confidence = min_confidence
     
     def extract_predictions(self, item: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -40,7 +38,7 @@ class PedestrianLightDetector:
         return []
     
     def classify_image(self, img_path: str) -> str:
-        url = f"https://detect.roboflow.com/pedestrian-traffic-light-3p4dd-zjeii/3?api_key={self.api_key}"
+        url = f"https://detect.roboflow.com/{self.workspace_name}?api_key={self.api_key}"
 
         with open(img_path, "rb") as f:
             response = requests.post(url, files={"file": f})
@@ -66,24 +64,19 @@ class PedestrianLightDetector:
             return "pedestrian light"
         else:
             return "red light"
-            
-def main():
-    API_KEY = "3n6ywM5Jck752Comeagi"
-    detector = PedestrianLightDetector(
-        api_key=API_KEY,
-        workspace_name="object-detection-phsdt",
-        workflow_id="detect-count-and-visualize-2",
-        min_confidence=0.40
-    )
 
+# Test.... 2.292 second to communicate with server  
+def main():
+    detector = PedestrianLightDetector()
+    t0 = time.perf_counter()
     img_path = "/home/steve/Desktop/DoggyStick/DoggyStick/raspberryPI/object_det_test_picture/test2.png"
     label = detector.classify_image(img_path)
     print(label)
+    t1 = time.perf_counter()
+    latency_s = t1-t0
+    print(f"latency: {latency_s:.3f} s  ({latency_s*1000:.1f} ms)")
 
-
-if __name__ == "__main__":
-    main()
-
+    
 
 
 

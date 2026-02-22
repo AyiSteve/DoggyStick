@@ -7,7 +7,7 @@ from mygps import myGPS
 from bluetooth_mod import BluetoothUART
 from button_recorder import VoiceRecordButton
 from server import start_debug_server
-
+from api.object_detection import PedestrianLightDetector
 class NavigationSupervisor:
     def __init__(self, mode="walk", period=1.0):
         self.period = period
@@ -25,6 +25,7 @@ class NavigationSupervisor:
         self.stm32.connect()
         self.ultrasonicLine = None
 
+        self.lightDetector = PedestrianLightDetector()
 
         self.voiceRecord = VoiceRecordButton()
 
