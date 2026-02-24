@@ -68,20 +68,11 @@ class MapNavigator:
         duration = leg["duration"]["text"]
 
         return distance, duration
-    
-    def getDistanceTransit(self):
 
-        leg = self.directionsTransit[0]["legs"][0]
-        distance = leg["distance"]["text"]
-        duration = leg["duration"]["text"]
-
-        return distance, duration
     
     def getCurrentPathWalk(self, n):
         return self.WalkPath[n]
     
-    def getCurrentPathTransit(self, n):
-        return self.TransitPath[n]
     
     # Return the meters between two point
     def distance(self, p1, p2, radius = 6371000):
