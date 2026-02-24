@@ -14,11 +14,13 @@ class Navigation:
 
         self.state = "FOLLOW_ROUTE"
         self.heading = None
+        self.prevGPS = None
 
         self.turn_angle = 0.0
         self.offroute_counter = 0
         self.wrong_dir_counter = 0
         self.dist_to_target = 0
+
     def updatePath(self):
         self.map.updateDirection()
         self.index = 0
@@ -47,18 +49,24 @@ class Navigation:
     # --------------------------------------------------
     def checkDirection(self, gps, speed_mps):
 
-        if gps is None:
+        if gps is None or self.map.filtered_gps is None:
             return False
 
-        move_dist = self.map.distance(self.map.filtered_gps, gps)
+        # Only evaluate when actually moving
+        if speed_mps is None or speed_mps < 0.8:
+            self.wrong_dir_counter = 0
+            return False
 
-        # Signed turn angle (-180 to 180)
-        turn = self.map.turn_angle(self.target)
-        error = abs(turn)
-        
-        threshold = 10
+        # Current heading must exist
+        if self.heading is None or self.target_bearing is None:
+            return False
 
-        if error > threshold:
+        # Signed angle difference (-180 to 180)
+        error = (self.target_bearing - self.heading + 180) % 360 - 180
+
+        threshold = 20  # degrees tolerance
+
+        if abs(error) > threshold:
             self.wrong_dir_counter += 1
         else:
             self.wrong_dir_counter = 0
@@ -76,11 +84,11 @@ class Navigation:
         distance = min(self.map.distance(gps, self.path[i]) for i in range(start, end))
         return distance > max_dist
 
-    def targetReached(self,gps):
+    def targetReached(self,gps, thresholdDis = 5.0):
         print("current", gps)
         self.dist_to_target = self.map.distance(gps, self.target)
         print(self.dist_to_target)
-        if self.dist_to_target < 5.0:
+        if self.dist_to_target < thresholdDis:
             if self.index < len(self.path) - 1:
                 self.state = "TARGET_REACHED"
                 self.index+=1
@@ -92,9 +100,8 @@ class Navigation:
     # --------------------------------------------------
     # MAIN NAVIGATION LOOP
     # --------------------------------------------------
-    def navigate(self, gps, speed_mps=0.0):
-        prevLocation = self.map.filtered_gps
-        if prevLocation is None or not self.path:
+    def navigate(self, gps, speed_mps):
+        if gps is None or not self.path:
             return self.state
 
         self.updateTarget()
@@ -117,7 +124,7 @@ class Navigation:
         # WRONG DIRECTION
         # --------------------------------------------------
         if self.checkDirection(gps, speed_mps):
-            self.turn_angle = self.map.turn_angle(self.target)
+            self.turn_angle = (self.target_bearing - self.heading + 180) % 360 - 180
             self.state = "WRONG_DIRECTION"
         else:
             self.turn_angle = 0.0

@@ -93,7 +93,7 @@ class MapNavigator:
         y = lat2-lat1
         return math.sqrt(x*x + y*y) * radius
 
-    def bearing(p1, p2):
+    def bearing(self, p1, p2):
         # Convert to radians frin degrees
         lat1 = math.radians(p1[0])
         lat2 = math.radians(p2[0])
@@ -107,12 +107,6 @@ class MapNavigator:
         bearing = (math.degrees(initial_bearing) + 360) % 360
         return bearing
 
-    def turn_angle(self, target):
-        b1 = MapNavigator.bearing(self.filtered_gps, self.currentLocation)
-        b2 = MapNavigator.bearing(self.currentLocation, target)
-
-        turn = (b2-b1+540) % 360 - 180
-        return turn
 
     def recalculateRoute(self):
         """
@@ -130,7 +124,7 @@ class MapNavigator:
             self.filtered_gps = (lat, lon)
         else:
             prev_lat, prev_lon = self.filtered_gps
-            alpha = 0.4
+            alpha = 0.9
 
             filt_lat = alpha * lat + (1 - alpha) * prev_lat
             filt_lon = alpha * lon + (1 - alpha) * prev_lon

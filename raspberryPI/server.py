@@ -49,7 +49,8 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                             "turn_angle": nav.turn_angle,
                             "wrong_dir_counter": nav.wrong_dir_counter,
                             "offroute_counter": nav.offroute_counter,
-                            "Distance To Target":nav.dist_to_target
+                            "Distance To Target":nav.dist_to_target,
+                            "heading":nav.heading
                         },
                         "System": {
                             "navigating": ns.navigating,

@@ -61,6 +61,13 @@ class NavigationSupervisor:
 
         self.map_nav.updateCurrentLocation(self.map_nav.lowPassFilter(pos))
 
+        if self.nav_agent.prevGPS is None:
+            self.nav_agent.prevGPS = self.map_nav.currentLocation
+        print(self.gps.speed_knots)
+        if self.gps.speed_knots is not None and self.gps.speed_knots >= 1.0:
+            self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
+            self.nav_agent.prevGPS = self.map_nav.currentLocation
+
     def read_ultrasonic(self):
         self.ultrasonicLine = self.stm32.readline()
         print(ns.ultrasonicLine)
@@ -114,7 +121,7 @@ class NavigationSupervisor:
         
         if self.navigating:
             gps = self.map_nav.currentLocation
-            self.state = self.nav_agent.navigate(gps)
+            self.state = self.nav_agent.navigate(gps, self.gps.speed_knots)
 
 
     # def read_gps(self):
@@ -171,7 +178,6 @@ if __name__ == "__main__":
         while True:
             with ns.lock:
                 ns.read_gps()
-                time.sleep(0.5)
 
 
 
