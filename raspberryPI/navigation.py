@@ -28,9 +28,12 @@ class Navigation:
         self.map.updateDirection()
         self.index = 0
         self.target = None
+        self.state =  "FOLLOW_ROUTE"
         self.path = self.map.WalkPath
         self.wrong_dir_counter = 0
         self.offroute_counter = 0
+        self.dist_to_target = 0
+        self.heading = None
 
     # --------------------------------------------------
     # Target update
