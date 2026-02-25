@@ -72,7 +72,7 @@ class Navigation:
         # --------------------------------------------------
         # Off-route detection (windowed)
         # --------------------------------------------------
-    def offRoute(self, gps, max_dist=20.0):
+    def offRoute(self, gps, max_dist=30.0):
 
         if not self.path or self.target is None:
             return False
@@ -93,9 +93,9 @@ class Navigation:
             if self.index < len(self.path) - 1:
                 self.state = "TARGET_REACHED"
                 self.index+=1
+                return True
             else:
                 self.state = "DESTINATION_REACHED"
-            return True
         return False
 
     # --------------------------------------------------
@@ -111,7 +111,7 @@ class Navigation:
         if self.targetReached():
             return self.state
 
-        if self.state in ("DESTINATION_REACHED",):
+        if self.state in ("DESTINATION_REACHED"):
             return self.state
 
         if self.offRoute(self.map.currentLocation):

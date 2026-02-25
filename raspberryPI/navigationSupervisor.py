@@ -172,8 +172,11 @@ if __name__ == "__main__":
     ns = NavigationSupervisor()
     ns.lock = threading.Lock()
 
-
-
+    # The period of the run is 0.6 second
+    # def gps_loop():
+    #     while True:
+    #         with ns.lock:
+    #             ns.read_gps()
     # -------------------------
     # Ultrasonic Thread
     # -------------------------
@@ -203,18 +206,16 @@ if __name__ == "__main__":
                 # Worst time were about
                 # time when follow is .0005ish
                 #time when nothing is input were 5us so where quick
-                # The period of the run is 0.6 second
                 ns.read_gps()
                 ns.pipeLineStatusPath()
                 if ns.state and ns.navigating:
                     # time take for the state machine were 30us...
                     ns.stateMachine(ns.state)
 
-            time.sleep(0.5)
-
     # Start all threads
     # threading.Thread(target=ultrasonic_loop, daemon=True).start()
     threading.Thread(target=voice_loop, daemon=True).start()
+    # threading.Thread(target=gps_loop, daemon=True).start()
     threading.Thread(target=navigation_loop, daemon=True).start()
     # Debug web server (runs in background)
     threading.Thread(
