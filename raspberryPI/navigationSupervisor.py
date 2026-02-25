@@ -63,10 +63,12 @@ class NavigationSupervisor:
 
         if self.nav_agent.prevGPS is None:
             self.nav_agent.prevGPS = self.map_nav.currentLocation
-        print(self.gps.speed_knots)
-        if self.gps.speed_knots is not None and self.gps.speed_knots >= 1.0:
+        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation):
             self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
             self.nav_agent.prevGPS = self.map_nav.currentLocation
+        if self.nav_agent.target is not None:
+            self.nav_agent.dist_to_target = self.map_nav.distance(self.map_nav.currentLocation, self.nav_agent.target)
+            self.nav_agent.targetReached()
 
     def read_ultrasonic(self):
         self.ultrasonicLine = self.stm32.readline()
@@ -145,6 +147,8 @@ class NavigationSupervisor:
             target = self.nav_agent.target
             print(f"[FOLLOW] target={target}")
 
+        elif state == "TARGET_REACHED":
+            self.nav_agent.state = "FOLLOW_ROUTE"
         elif state == "WRONG_DIRECTION":
             angle = self.nav_agent.turn_angle
             if angle > 0:
@@ -200,7 +204,6 @@ if __name__ == "__main__":
         while True:
             ns.pipLineGetPath()
             time.sleep(0.5)
-
 
     # -------------------------
     # Navigation Thread
