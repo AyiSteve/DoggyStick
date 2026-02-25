@@ -63,12 +63,12 @@ class NavigationSupervisor:
 
         if self.nav_agent.prevGPS is None:
             self.nav_agent.prevGPS = self.map_nav.currentLocation
-        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 5:
+        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 10:
             self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
             self.nav_agent.prevGPS = self.map_nav.currentLocation
         if self.nav_agent.target is not None:
             self.nav_agent.dist_to_target = self.map_nav.distance(self.map_nav.currentLocation, self.nav_agent.target)
-            self.nav_agent.targetReached()
+
 
     def read_ultrasonic(self):
         self.ultrasonicLine = self.stm32.readline()
@@ -96,26 +96,22 @@ class NavigationSupervisor:
             addr = place.get("formattedAddress", "")
             print(f"{i+1}. {name} — {addr}")
 
-        choice = input("\nSelect destination number: ")
 
-        if choice.isdigit():
-            index = int(choice) - 1
 
-            if 0 <= index < len(result):
 
-                selected = result[0]
+        selected = result[0]
 
-                name = selected["displayName"]["text"]
+        name = selected["displayName"]["text"]
 
-                lat = selected["location"]["latitude"]
-                lng = selected["location"]["longitude"]
+        lat = selected["location"]["latitude"]
+        lng = selected["location"]["longitude"]
 
-                # Store coordinates
-                with self.lock:
-                    self.reset((lat,lng))
-                    self.navigating = True
-                print(f"Destination set: {name}")
-                print(f"Coordinates: ({lat}, {lng})")
+            # Store coordinates
+        with self.lock:
+            self.reset((lat,lng))
+            self.navigating = True
+        print(f"Destination set: {name}")
+        print(f"Coordinates: ({lat}, {lng})")
 
     def pipeLineStatusPath(self):
         if self.map_nav.currentLocation == None or self.nav_agent.path == None:
@@ -123,7 +119,8 @@ class NavigationSupervisor:
         
         if self.navigating:
             gps = self.map_nav.currentLocation
-            self.state = self.nav_agent.navigate(gps, self.gps.speed_knots)
+            self.state = self.nav_agent.navigate()
+
 
 
     # def read_gps(self):
@@ -149,6 +146,7 @@ class NavigationSupervisor:
 
         elif state == "TARGET_REACHED":
             self.nav_agent.state = "FOLLOW_ROUTE"
+
         elif state == "WRONG_DIRECTION":
             angle = self.nav_agent.turn_angle
             if angle > 0:
@@ -173,15 +171,6 @@ if __name__ == "__main__":
 
     ns = NavigationSupervisor()
     ns.lock = threading.Lock()
-
-    # -------------------------
-    # GPS Thread
-    # -------------------------
-    # The period of the run is 0.6 second
-    def gps_loop():
-        while True:
-            with ns.lock:
-                ns.read_gps()
 
 
 
@@ -214,6 +203,8 @@ if __name__ == "__main__":
                 # Worst time were about
                 # time when follow is .0005ish
                 #time when nothing is input were 5us so where quick
+                # The period of the run is 0.6 second
+                ns.read_gps()
                 ns.pipeLineStatusPath()
                 if ns.state and ns.navigating:
                     # time take for the state machine were 30us...
@@ -222,7 +213,6 @@ if __name__ == "__main__":
             time.sleep(0.5)
 
     # Start all threads
-    threading.Thread(target=gps_loop, daemon=True).start()
     # threading.Thread(target=ultrasonic_loop, daemon=True).start()
     threading.Thread(target=voice_loop, daemon=True).start()
     threading.Thread(target=navigation_loop, daemon=True).start()

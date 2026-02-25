@@ -49,9 +49,9 @@ class MapNavigator:
         for step in steps:
             decoded = polyline.decode(step["polyline"]["points"])
             for point in decoded:
+                print(point)
                 self.WalkPath.append(point)
 
-        print(steps)
         #steps = self.directionsTransit[0]["legs"][0]["steps"]
         #self.TransitPath = []
         #for step in steps:

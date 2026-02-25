@@ -46,7 +46,7 @@ class Navigation:
     # --------------------------------------------------
     # Wrong direction detection
     # --------------------------------------------------
-    def checkDirection(self, gps, speed_mps):
+    def checkDirection(self, gps):
 
         if gps is None or self.heading is None or self.target is None:
             return False
@@ -60,7 +60,7 @@ class Navigation:
         error = abs(turn)
 
         # Dynamic threshold (walking vs standing)
-        threshold = 20 if speed_mps > .7 else 40
+        threshold = 40
 
         if error > threshold:
             self.wrong_dir_counter += 1
@@ -69,83 +69,56 @@ class Navigation:
 
         return self.wrong_dir_counter >= 2
 
-    # --------------------------------------------------
-    # Off-route detection (windowed)
-    # --------------------------------------------------
-    def offRoute(self, gps, target_thresh=20.0, snap_thresh=15.0, max_dist=30.0):
+        # --------------------------------------------------
+        # Off-route detection (windowed)
+        # --------------------------------------------------
+    def offRoute(self, gps, max_dist=20.0):
 
         if not self.path or self.target is None:
             return False
 
-        # ---------------------------------------------
-        # Step 1: Check distance to current target
-        # ---------------------------------------------
-        dist_to_target = self.map.distance(gps, self.target)
+        # Distance to current target
+        dist = self.map.distance(gps, self.target)
 
-        # If still reasonably close ? stay on course
-        if dist_to_target < target_thresh:
+        if (self.index > 0):
+            max_dist += self.map.distance(self.target, self.path[self.index-1])
+
+        return dist > max_dist
+
+    def targetReached(self, reach_dist=7.0):
+        if self.target is None:
             return False
 
-        # ---------------------------------------------
-        # Step 2: Search forward waypoints
-        # ---------------------------------------------
-        nearest_index = self.index
-        nearest_dist = dist_to_target
-
-        for i in range(self.index + 1, len(self.path)):
-            d = self.map.distance(gps, self.path[i])
-            if d < nearest_dist:
-                nearest_dist = d
-                nearest_index = i
-
-        # ---------------------------------------------
-        # Step 3: Snap forward if closer point found
-        # ---------------------------------------------
-        if nearest_index > self.index and nearest_dist < snap_thresh:
-            self.index = nearest_index
-            self.target = self.path[self.index]
-            return False
-
-        # ---------------------------------------------
-        # Step 4: Too far from everything ? off route
-        # ---------------------------------------------
-        if nearest_dist > max_dist:
-            return True
-
-        return False
-
-    def targetReached(self):
-        if self.dist_to_target < 7.0:
+        if self.dist_to_target < reach_dist:
             if self.index < len(self.path) - 1:
                 self.state = "TARGET_REACHED"
                 self.index+=1
             else:
                 self.state = "DESTINATION_REACHED"
+            return True
+        return False
 
     # --------------------------------------------------
     # MAIN NAVIGATION LOOP
     # --------------------------------------------------
-    def navigate(self, gps, speed_mps):
-        prevLocation = self.prevGPS
-        if prevLocation is None or not self.path:
+    def navigate(self):
+        if self.prevGPS is None or not self.path or self.map.currentLocation is None:
             return self.state
 
-        # --------------------------------------------------
-        # OFF ROUTE CHECK FIRST (no snapping yet)
-        # --------------------------------------------------
         self.updateTarget()
 
-        if self.state == "TARGET_REACHED" or self.state == "DESTINATION_REACHED":
+        # check reached using CURRENT gps + CURRENT target
+        if self.targetReached():
             return self.state
 
-        if self.offRoute(gps):
+        if self.state in ("DESTINATION_REACHED",):
+            return self.state
+
+        if self.offRoute(self.map.currentLocation):
             self.state = "OFF_ROUTE"
             return self.state
 
-        # --------------------------------------------------
-        # WRONG DIRECTION
-        # --------------------------------------------------
-        if self.checkDirection(gps, speed_mps):
+        if self.checkDirection(self.map.currentLocation):
             self.state = "WRONG_DIRECTION"
         else:
             self.turn_angle = 0.0
