@@ -63,7 +63,7 @@ class NavigationSupervisor:
 
         if self.nav_agent.prevGPS is None:
             self.nav_agent.prevGPS = self.map_nav.currentLocation
-        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 2:
+        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 1:
             self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
             self.nav_agent.prevGPS = self.map_nav.currentLocation
         if self.nav_agent.target is not None:

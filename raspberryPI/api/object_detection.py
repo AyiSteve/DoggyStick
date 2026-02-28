@@ -65,11 +65,11 @@ class PedestrianLightDetector:
         else:
             return "red light"
 
-# Test.... 2.292 second to communicate with server  
+# Test.... 4 second to communicate with server  
 def main():
     detector = PedestrianLightDetector()
     t0 = time.perf_counter()
-    img_path = "/home/steve/Desktop/DoggyStick/DoggyStick/raspberryPI/object_det_test_picture/test2.png"
+    img_path = "/home/steve/Desktop/DoggyStick/DoggyStick/raspberryPI/object_det_test_picture/test3.png"
     label = detector.classify_image(img_path)
     print(label)
     t1 = time.perf_counter()
@@ -78,7 +78,7 @@ def main():
 
     
 
-
+main()
 
 
 # provide from roboflow
