@@ -9,7 +9,7 @@ class PedestrianLightDetector:
     def __init__(
             self,
             api_key: str ="3n6ywM5Jck752Comeagi",
-            workspace_name: str = "pedestrian-traffic-light-3p4dd-zjeii/3",
+            workspace_name: str = "pedestrian-traffic-light-3p4dd-zjeii/6",
             api_url: str = "https://serverless.roboflow.com",
             min_confidence: float =0.40,
     ):
