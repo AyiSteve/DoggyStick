@@ -10,6 +10,7 @@ class BluetoothUART:
         self.baud =baud
         self.timeout = timeout
         self.ser = None
+        self.ultrasonic = None
 
 
     def connect(self):
@@ -26,6 +27,20 @@ class BluetoothUART:
         line = self.ser.readline().decode(errors="ignore").strip()
         return line if line else None
 
+    def read_ultrasonic(self):
+        line = self.stm32.readline()
+        if not line:
+            return
+
+        try:
+            front, left, right = map(float, line.split(","))
+            self.ultrasonic = {
+                "front": front,
+                "left": left,
+                "right": right,
+            }
+        except ValueError:
+            return
 
     def compute_turn_time(self, angle, TURN_RATE=1.8):
         """
@@ -56,9 +71,9 @@ class BluetoothUART:
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Un Comment to test send servo
-bt = BluetoothUART()
-bt.connect()
-time.sleep(5)
-print(bt.compute_turn_time(90))
-bt.send(bt.compute_turn_time(90)[0],bt.compute_turn_time(90)[1])
-bt.readline()
+# bt = BluetoothUART()
+# bt.connect()
+# time.sleep(5)
+# print(bt.compute_turn_time(90))
+# bt.send(bt.compute_turn_time(90)[0],bt.compute_turn_time(90)[1])
+# print(bt.readline())
