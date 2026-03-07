@@ -26,10 +26,24 @@ class BluetoothUART:
         line = self.ser.readline().decode(errors="ignore").strip()
         return line if line else None
 
-    def send(self, angleServo, mode = "servo"):
+
+    def compute_turn_time(self, angle, TURN_RATE=1.8):
+        """
+        angle: desired turn in degrees
+            positive = right
+            negative = left
+        """
+
+        seconds = abs(angle) * (TURN_RATE/90)
+        direction = 2 if angle > 0 else 1
+
+        return direction, seconds
+
+    def send(self, direction, seconds=1):
         if self.ser is None:
             raise RuntimeError("BluetoothUART not connect, call connect() first")
-        data = f"{angleServo}\n"
+
+        data = f"{direction},{seconds}\n"
         self.ser.write(data.encode())
 
     def close(self):
@@ -42,10 +56,9 @@ class BluetoothUART:
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Un Comment to test send servo
-# bt = BluetoothUART()
-# bt.connect()
-# while True:
-#     for i in [0, 45, 90, 180]:
-#         bt.send(i)
-#         print(i)
-#         time.sleep(5)
+bt = BluetoothUART()
+bt.connect()
+time.sleep(5)
+print(bt.compute_turn_time(90))
+bt.send(bt.compute_turn_time(90)[0],bt.compute_turn_time(90)[1])
+bt.readline()
