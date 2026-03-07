@@ -1,5 +1,5 @@
 from api.mapapi import MapNavigator
-
+from cameraNobjectdec import capture_detection
 # States:
 # FOLLOW_ROUTE, DESTINATION_REACHED, OFF_ROUTE, WRONG_DIRECTION
 
@@ -44,8 +44,35 @@ class Navigation:
 
         self.target = self.path[self.index]
 
+    def obstacleAvoidance(self, front, left, right):
 
+        STOP_THRESHOLD = 20
+        SAFE_FRONT = 40
 
+        # Emergency: too close
+        if front < STOP_THRESHOLD:
+
+            # Choose turn direction
+            if left > right:
+                return "RECOVER_LEFT", -40
+            else:
+                return "RECOVER_RIGHT", 40
+
+        # Normal avoidance
+        side_bias = (left - right)
+        angle = max(min(side_bias * 0.5, 45), -45)
+
+        if front < SAFE_FRONT:
+            return "AVOID", angle
+
+        return "CLEAR", 0
+
+    def detectLight(self):
+        result = capture_detection()
+        label = result["label"]
+        if label == "":
+            return True
+        return False
     # --------------------------------------------------
     # Wrong direction detection
     # --------------------------------------------------
@@ -108,6 +135,26 @@ class Navigation:
         if self.prevGPS is None or not self.path or self.map.currentLocation is None:
             return self.state
 
+        if self.detectLight():
+            return "EMStop"
+        
+
+        status, angle = self.obstacleAvoidance(front, left, right)
+
+        if status == "RECOVER_LEFT":
+            self.state = "RECOVER"
+            self.turn_angle = angle
+            return "MOVE_BACK_AND_TURN"
+
+        if status == "RECOVER_RIGHT":
+            self.state = "RECOVER"
+            self.turn_angle = angle
+            return "MOVE_BACK_AND_TURN"
+        
+        if status == "AVOID":
+            self.turn_angle += angle
+            return "AVOID"
+        
         self.updateTarget()
 
         # check reached using CURRENT gps + CURRENT target

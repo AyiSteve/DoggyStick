@@ -63,7 +63,7 @@ class NavigationSupervisor:
 
         if self.nav_agent.prevGPS is None:
             self.nav_agent.prevGPS = self.map_nav.currentLocation
-        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 1:
+        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 0.8:
             self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
             self.nav_agent.prevGPS = self.map_nav.currentLocation
         if self.nav_agent.target is not None:
@@ -137,7 +137,10 @@ class NavigationSupervisor:
         if state == None:
             return
         
-        if state == "FOLLOW_ROUTE":
+        if state == "EMStop":
+            self.navigating = False
+            print("RED LIGHT Detected")
+        elif state == "FOLLOW_ROUTE":
             target = self.nav_agent.target
             print(f"[FOLLOW] target={target}")
 

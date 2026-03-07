@@ -49,13 +49,12 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+float HCSR04_GetDistance(uint8_t sensor);
+void HCSR04_Update(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
