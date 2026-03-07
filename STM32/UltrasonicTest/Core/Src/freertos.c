@@ -33,7 +33,7 @@
 /* USER CODE BEGIN PTD */
 typedef struct {
     int dir;
-    int seconds;
+    float seconds;
 } MotorCommand_t;
 /* USER CODE END PTD */
 
@@ -282,7 +282,7 @@ void Task_Bluetooth(void *argument)
             cmd.dir = 0;
             cmd.seconds = 0;
 
-            if (sscanf(rx_buffer, "%d,%d", &cmd.dir, &cmd.seconds) == 2)
+            if (sscanf(rx_buffer, "%d,%f", &cmd.dir, &cmd.seconds) == 2)
             {
                 osMessageQueuePut(distanceQueueHandle, &cmd, 0, 0);
             }
