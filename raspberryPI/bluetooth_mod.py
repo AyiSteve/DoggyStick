@@ -28,7 +28,7 @@ class BluetoothUART:
         return line if line else None
 
     def read_ultrasonic(self):
-        line = self.stm32.readline()
+        line = self.readline()
         if not line:
             return
 
@@ -43,32 +43,33 @@ class BluetoothUART:
             return
 
     def compute_turn_time(self, angle, TURN_RATE=1.8):
-        """
-        angle: desired turn in degrees
-            positive = right
-            negative = left
-        """
 
-        seconds = abs(angle) * (TURN_RATE/90)
+        seconds = abs(angle) * (TURN_RATE / 90)
+        ms = int(seconds * 1000)
+
         direction = 2 if angle > 0 else 1
 
-        return direction, seconds
-
+        return direction, ms
+    
     def send_drive_command(self, angle):
-        direction, ms = self.stm32.compute_turn_time(angle)
+        direction, ms = self.compute_turn_time(angle)
 
         # small angle means go straight
         if abs(angle) < 10:
             self.stm32.send(3, 300)
         else:
             self.stm32.send(direction, ms)
-            
-    def send(self, direction, seconds=1):
+
+    def send(self, direction, ms=100):
         if self.ser is None:
             raise RuntimeError("BluetoothUART not connect, call connect() first")
 
-        data = f"{direction},{seconds}\n"
-        self.ser.write(data.encode())
+        ms = min(ms, 5000)
+
+        data = f"{direction},{ms}\n"
+
+        with self.lock:
+            self.ser.write(data.encode())
 
     def close(self):
         try:

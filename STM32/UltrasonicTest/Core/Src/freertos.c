@@ -23,6 +23,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "tim.h"
+#include <string.h>
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
@@ -33,7 +34,7 @@
 /* USER CODE BEGIN PTD */
 typedef struct {
     int dir;
-    float seconds;
+    uint32_t ms;
 } MotorCommand_t;
 /* USER CODE END PTD */
 
@@ -79,11 +80,17 @@ const osThreadAttr_t Task_Display_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for Task_Bluetooth */
-osThreadId_t Task_BluetoothHandle;
-const osThreadAttr_t Task_Bluetooth_attributes = {
-  .name = "Task_Bluetooth",
-  .stack_size = 4096,
+osThreadId_t Task_BT_RXHandle;
+const osThreadAttr_t Task_BT_RX_attributes = {
+  .name = "Task_BT_RX",
+  .stack_size = 512*4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+
+osThreadId_t Task_BT_TXHandle;
+const osThreadAttr_t Task_BT_TX_attributes = {
+  .name = "Task_BT_TX",
+  .stack_size = 512*4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for distanceQueue */
@@ -175,7 +182,7 @@ void Task_Motor(void *argument)
         if (osMessageQueueGet(distanceQueueHandle, &cmd, NULL, 0) == osOK)
         {
             active_dir = cmd.dir;
-            end_tick = HAL_GetTick() + (uint32_t)(cmd.seconds * 1000);
+            end_tick = HAL_GetTick() + cmd.ms;
         }
 
         // Execute current state
@@ -216,8 +223,7 @@ void Task_Ultrasonic(void *argument)
     for(;;)
     {
       	HCSR04_Update();
-         osDelay(50);
-
+      	vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
@@ -246,9 +252,8 @@ void Task_Display(void *argument)
 
 
 
-void Task_Bluetooth(void *argument)
+void Task_BT_RX(void *argument)
 {
-    char msg[64];
     char rx_buffer[32];
     uint8_t ch;
     int idx = 0;
@@ -256,48 +261,73 @@ void Task_Bluetooth(void *argument)
 
     for(;;)
     {
-        // --- receive one command line: "dir,seconds\n"
-        idx = 0;
-        memset(rx_buffer, 0, sizeof(rx_buffer));
+    	osMutexAcquire(myMutex01Handle, osWaitForever);
+    	HAL_StatusTypeDef status = HAL_UART_Receive(&huart3, &ch, 1, 5);
+    	osMutexRelease(myMutex01Handle);
 
-        while (idx < (int)(sizeof(rx_buffer) - 1))
+    	if (status == HAL_OK)
         {
-            if (HAL_UART_Receive(&huart3, &ch, 1, 50) == HAL_OK)
+            if (ch == '\n' || ch == '\r')
             {
-                if (ch == '\n' || ch == '\r')
-                    break;
+                if (idx == 0)
+                    continue;
+                rx_buffer[idx] = '\0';
 
+                cmd.dir = 0;
+                cmd.ms = 0;
+
+                if (sscanf(rx_buffer, "%d,%lu", &cmd.dir, &cmd.ms) == 2)
+                {
+                	if (cmd.dir < 1 || cmd.dir > 4)
+                	{
+                	    idx = 0;
+                	    memset(rx_buffer,0,sizeof(rx_buffer));
+                	    continue;
+                	}
+
+                    if (cmd.ms > 5000)
+                        cmd.ms = 5000;
+
+                    if (osMessageQueuePut(distanceQueueHandle, &cmd, 0, 0) != osOK)
+                    {
+                        // optional: drop or send stop command
+                    }
+                }
+
+                idx = 0;
+                memset(rx_buffer, 0, sizeof(rx_buffer));
+            }
+            else if (idx < (int)(sizeof(rx_buffer) - 1))
+            {
                 rx_buffer[idx++] = ch;
             }
             else
             {
-                vTaskDelay(pdMS_TO_TICKS(5));
-                continue;
+                idx = 0;
+                memset(rx_buffer, 0, sizeof(rx_buffer));
             }
         }
 
-        // parse command if something arrived
-        if (idx > 0)
-        {
-            cmd.dir = 0;
-            cmd.seconds = 0;
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
+}
 
-            if (sscanf(rx_buffer, "%d,%f", &cmd.dir, &cmd.seconds) == 2)
-            {
-                osMessageQueuePut(distanceQueueHandle, &cmd, 0, 0);
-            }
-        }
+void Task_BT_TX(void *argument)
+{
+    char msg[64];
 
-        // --- send telemetry
+    for(;;)
+    {
         float d0 = HCSR04_GetDistance(0);
         float d1 = HCSR04_GetDistance(1);
         float d2 = HCSR04_GetDistance(2);
 
         snprintf(msg, sizeof(msg), "%.2f,%.2f,%.2f\r\n", d0, d1, d2);
-        HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), 100);
+        osMutexAcquire(myMutex01Handle, osWaitForever);
+        HAL_UART_Transmit(&huart3, (uint8_t*)msg, strlen(msg), 50);
+        osMutexRelease(myMutex01Handle);
 
-            vTaskDelay(pdMS_TO_TICKS(200));
-
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 /* USER CODE END FunctionPrototypes */
@@ -358,8 +388,8 @@ void MX_FREERTOS_Init(void) {
   // Task_DisplayHandle = osThreadNew(StartTask03, NULL, &Task_Display_attributes);
 
   /* creation of Task_Bluetooth */
-  Task_BluetoothHandle = osThreadNew(Task_Bluetooth, NULL, &Task_Bluetooth_attributes);
-
+  Task_BT_RXHandle = osThreadNew(Task_BT_RX, NULL, &Task_BT_RX_attributes);
+  Task_BT_TXHandle = osThreadNew(Task_BT_TX, NULL, &Task_BT_TX_attributes);
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */

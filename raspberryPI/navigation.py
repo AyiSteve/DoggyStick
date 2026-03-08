@@ -1,5 +1,4 @@
 from api.mapapi import MapNavigator
-from cameraNobjectdec import capture_detection
 # States:
 # FOLLOW_ROUTE, DESTINATION_REACHED, OFF_ROUTE, WRONG_DIRECTION
 
@@ -21,7 +20,6 @@ class Navigation:
         self.dist_to_target = 0
 
         self.prevGPS = None
-        self.heading = None
 
 
     def updatePath(self):
@@ -62,29 +60,56 @@ class Navigation:
 
         return "CLEAR", 0
 
-    def detectLight(self):
-        result = capture_detection()
-        label = result["label"]
-        if label == "":
-            return False
-        return True
     # --------------------------------------------------
     # Wrong direction detection
     # --------------------------------------------------
-    def checkDirection(self, gps):
+    def checkDirection(self, gps, front, left, right):
 
         if gps is None or self.heading is None or self.target is None:
             return False
 
-        # Desired direction toward target
+        # -----------------------------
+        # ROUTE FOLLOWING ANGLE
+        # -----------------------------
         desired = self.map.bearing(gps, self.target)
 
-        # Signed turn angle (-180 to 180)
-        turn = (desired - self.heading + 540) % 360 - 180
-        self.turn_angle = turn
-        error = abs(turn)
+        nav_angle = (desired - self.heading + 540) % 360 - 180
 
-        # Dynamic threshold (walking vs standing)
+
+        # -----------------------------
+        # OBSTACLE AVOIDANCE
+        # -----------------------------
+        STOP_THRESHOLD = 20
+        SAFE_FRONT = 40
+
+        if front < STOP_THRESHOLD:
+            if left > right:
+                self.turn_angle = -60
+            else:
+                self.turn_angle = 60
+            return True   # treat as wrong direction → recovery
+
+        avoid_angle = 0
+
+        if front < SAFE_FRONT:
+            side_bias = right - left
+            avoid_angle = max(min(side_bias * 0.8, 45), -45)
+
+
+        # -----------------------------
+        # COMBINE ROUTE + AVOIDANCE
+        # -----------------------------
+        final_angle = nav_angle + 0.6 * avoid_angle
+
+        final_angle = max(min(final_angle, 90), -90)
+
+        self.turn_angle = final_angle
+
+
+        # -----------------------------
+        # WRONG DIRECTION CHECK
+        # -----------------------------
+        error = abs(nav_angle)
         threshold = 40
 
         if error > threshold:
@@ -116,7 +141,6 @@ class Navigation:
 
         if self.dist_to_target < reach_dist:
             if self.index < len(self.path) - 1:
-                self.state = "TARGET_REACHED"
                 self.index+=1
                 return True
             else:
@@ -126,49 +150,44 @@ class Navigation:
     # --------------------------------------------------
     # MAIN NAVIGATION LOOP
     # --------------------------------------------------
-    def navigate(self, front, left, right):
+    def navigate(self, front, left, right, lightStatus):
+
+        # Basic validity check
         if self.prevGPS is None or not self.path or self.map.currentLocation is None:
             return self.state
 
-        if self.detectLight():
+        # Emergency stop (traffic light)
+        if lightStatus:
             self.state = "EMStop"
             return self.state
 
+        # Update next waypoint
         self.updateTarget()
 
+        # Update distance to target
+        self.dist_to_target = self.map.distance(self.map.currentLocation, self.target)
+
+        # Check if waypoint reached
         if self.targetReached():
             return self.state
 
         if self.state == "DESTINATION_REACHED":
             return self.state
 
+        # Off route detection
         if self.offRoute(self.map.currentLocation):
             self.state = "OFF_ROUTE"
             return self.state
 
-        # route-following angle
-        nav_angle = 0.0
-        if self.heading is not None and self.target is not None:
-            desired = self.map.bearing(self.map.currentLocation, self.target)
-            nav_angle = (desired - self.heading + 540) % 360 - 180
+        # Compute steering + wrong direction detection
+        wrong = self.checkDirection(
+            self.map.currentLocation,
+            front,
+            left,
+            right
+        )
 
-        # obstacle avoidance angle
-        status, avoid_angle = self.obstacleAvoidance(front, left, right)
-
-        if status in ("RECOVER_LEFT", "RECOVER_RIGHT"):
-            self.turn_angle = avoid_angle
-            self.state = "MOVE_BACK_AND_TURN"
-            return self.state
-
-        # combine route + obstacle
-        final_angle = nav_angle
-        if status == "AVOID":
-            final_angle += avoid_angle
-
-        final_angle = max(min(final_angle, 90), -90)
-        self.turn_angle = final_angle
-
-        if abs(final_angle) > 40:
+        if wrong:
             self.state = "WRONG_DIRECTION"
         else:
             self.state = "FOLLOW_ROUTE"

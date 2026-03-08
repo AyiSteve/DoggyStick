@@ -3,13 +3,14 @@ from api.mapapi import MapNavigator
 from navigation import Navigation
 from mygps import myGPS
 import threading
-from mygps import myGPS
 from bluetooth_mod import BluetoothUART
 from button_recorder import VoiceRecordButton
 from server import start_debug_server
 from api.object_detection import PedestrianLightDetector
+from cameraNobjectdec import capture_detection
+
 class NavigationSupervisor:
-    def __init__(self, mode="walk", period=1.0):
+    def __init__(self, mode="walk", period=0.2):
         self.period = period
         self.mode = mode
 
@@ -25,11 +26,11 @@ class NavigationSupervisor:
         self.stm32.connect()
         self.ultrasonicLine = None
 
-        self.lightDetector = PedestrianLightDetector()
 
         self.voiceRecord = VoiceRecordButton()
 
         self.state = None
+        self.light_state = False
 
     def reset(self, destination):
         # keep same map_nav object
@@ -39,7 +40,11 @@ class NavigationSupervisor:
         # update navigation path
         self.nav_agent.path = self.map_nav.WalkPath
         self.nav_agent.index = 0
-        self.nav_agent.target = None
+        if not self.nav_agent.path:
+            print("No path returned from Map API")
+            self.navigating = False
+            return
+        self.nav_agent.target = self.nav_agent.path[0]
 
     # --------------------------------------------------
     # INPUT SOURCES
@@ -66,15 +71,10 @@ class NavigationSupervisor:
         if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 0.8:
             self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
             self.nav_agent.prevGPS = self.map_nav.currentLocation
-        if self.nav_agent.target is not None:
-            self.nav_agent.dist_to_target = self.map_nav.distance(self.map_nav.currentLocation, self.nav_agent.target)
 
 
     def read_ultrasonic(self):
         self.stm32.read_ultrasonic()
-
-    def send_angleServo(self, angle):
-        self.stm32.send(angle)
 
 # PipLineGetPath function will be run independently on capturing the data from mic, asking user for correct addres + update the destination location
     def pipLineGetPath(self, numPlace=5):
@@ -114,8 +114,11 @@ class NavigationSupervisor:
             return
         
         if self.navigating:
-            gps = self.map_nav.currentLocation
-            self.state = self.nav_agent.navigate(self.stm32.ultrasonic[0],self.stm32.ultrasonic[1],self.stm32.ultrasonic[2])
+            u = self.stm32.ultrasonic
+
+            if not u or "front" not in u:
+                return
+            self.state = self.nav_agent.navigate(u["front"],u["left"],u["right"], self.light_state)
 
 
 
@@ -152,11 +155,6 @@ class NavigationSupervisor:
             angle = self.nav_agent.turn_angle
             self.stm32.send_drive_command(angle)
             print(f"[TURN] angle={angle:.1f}")
-
-        elif state == "MOVE_BACK_AND_TURN":
-            angle = self.nav_agent.turn_angle
-            self.stm32.send_drive_command(angle)
-            print(f"[RECOVER] angle={angle:.1f}")
 
         elif state == "OFF_ROUTE":
             self.stm32.send(4, 0)
@@ -208,20 +206,37 @@ if __name__ == "__main__":
     def navigation_loop():
         while True:
             with ns.lock:
-                # Worst time were about
-                # time when follow is .0005ish
-                #time when nothing is input were 5us so where quick
                 ns.read_gps()
                 ns.pipeLineStatusPath()
-                if ns.state and ns.navigating:
-                    # time take for the state machine were 30us...
-                    ns.stateMachine(ns.state)
+                state = ns.state
+                navigating = ns.navigating
 
+            if state and navigating:
+                ns.stateMachine(state)
+
+            time.sleep(ns.period)
+
+    def camera_loop():
+        while True:
+            try:
+                result = capture_detection()
+                if result and result.get("label", "") != "":
+                    with ns.lock:
+                        ns.light_state = True
+                else:
+                    with ns.lock:
+                        ns.light_state = False
+            except Exception as e:
+                print("camera error:", e)
+                ns.light_state = False
+
+            time.sleep(0.2)
     # Start all threads
-    # threading.Thread(target=ultrasonic_loop, daemon=True).start()
+    threading.Thread(target=ultrasonic_loop, daemon=True).start()
     threading.Thread(target=voice_loop, daemon=True).start()
     # threading.Thread(target=gps_loop, daemon=True).start()
     threading.Thread(target=navigation_loop, daemon=True).start()
+    threading.Thread(target=camera_loop, daemon=True).start()
     # Debug web server (runs in background)
     threading.Thread(
         target=start_debug_server,
