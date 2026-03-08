@@ -45,22 +45,17 @@ class Navigation:
         self.target = self.path[self.index]
 
     def obstacleAvoidance(self, front, left, right):
-
         STOP_THRESHOLD = 20
         SAFE_FRONT = 40
 
-        # Emergency: too close
         if front < STOP_THRESHOLD:
-
-            # Choose turn direction
             if left > right:
-                return "RECOVER_LEFT", -40
+                return "RECOVER_LEFT", -60
             else:
-                return "RECOVER_RIGHT", 40
+                return "RECOVER_RIGHT", 60
 
-        # Normal avoidance
-        side_bias = (left - right)
-        angle = max(min(side_bias * 0.5, 45), -45)
+        side_bias = left - right
+        angle = max(min(side_bias * 1.0, 45), -45)
 
         if front < SAFE_FRONT:
             return "AVOID", angle
@@ -71,8 +66,8 @@ class Navigation:
         result = capture_detection()
         label = result["label"]
         if label == "":
-            return True
-        return False
+            return False
+        return True
     # --------------------------------------------------
     # Wrong direction detection
     # --------------------------------------------------
@@ -131,47 +126,51 @@ class Navigation:
     # --------------------------------------------------
     # MAIN NAVIGATION LOOP
     # --------------------------------------------------
-    def navigate(self):
+    def navigate(self, front, left, right):
         if self.prevGPS is None or not self.path or self.map.currentLocation is None:
             return self.state
 
         if self.detectLight():
-            return "EMStop"
-        
+            self.state = "EMStop"
+            return self.state
 
-        status, angle = self.obstacleAvoidance(front, left, right)
-
-        if status == "RECOVER_LEFT":
-            self.state = "RECOVER"
-            self.turn_angle = angle
-            return "MOVE_BACK_AND_TURN"
-
-        if status == "RECOVER_RIGHT":
-            self.state = "RECOVER"
-            self.turn_angle = angle
-            return "MOVE_BACK_AND_TURN"
-        
-        if status == "AVOID":
-            self.turn_angle += angle
-            return "AVOID"
-        
         self.updateTarget()
 
-        # check reached using CURRENT gps + CURRENT target
         if self.targetReached():
             return self.state
 
-        if self.state in ("DESTINATION_REACHED"):
+        if self.state == "DESTINATION_REACHED":
             return self.state
 
         if self.offRoute(self.map.currentLocation):
             self.state = "OFF_ROUTE"
             return self.state
 
-        if self.checkDirection(self.map.currentLocation):
+        # route-following angle
+        nav_angle = 0.0
+        if self.heading is not None and self.target is not None:
+            desired = self.map.bearing(self.map.currentLocation, self.target)
+            nav_angle = (desired - self.heading + 540) % 360 - 180
+
+        # obstacle avoidance angle
+        status, avoid_angle = self.obstacleAvoidance(front, left, right)
+
+        if status in ("RECOVER_LEFT", "RECOVER_RIGHT"):
+            self.turn_angle = avoid_angle
+            self.state = "MOVE_BACK_AND_TURN"
+            return self.state
+
+        # combine route + obstacle
+        final_angle = nav_angle
+        if status == "AVOID":
+            final_angle += avoid_angle
+
+        final_angle = max(min(final_angle, 90), -90)
+        self.turn_angle = final_angle
+
+        if abs(final_angle) > 40:
             self.state = "WRONG_DIRECTION"
         else:
-            self.turn_angle = 0.0
             self.state = "FOLLOW_ROUTE"
 
         return self.state

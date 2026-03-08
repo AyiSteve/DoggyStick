@@ -54,6 +54,15 @@ class BluetoothUART:
 
         return direction, seconds
 
+    def send_drive_command(self, angle):
+        direction, ms = self.stm32.compute_turn_time(angle)
+
+        # small angle means go straight
+        if abs(angle) < 10:
+            self.stm32.send(3, 300)
+        else:
+            self.stm32.send(direction, ms)
+            
     def send(self, direction, seconds=1):
         if self.ser is None:
             raise RuntimeError("BluetoothUART not connect, call connect() first")

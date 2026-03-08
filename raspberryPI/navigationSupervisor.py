@@ -71,8 +71,7 @@ class NavigationSupervisor:
 
 
     def read_ultrasonic(self):
-        self.ultrasonicLine = self.stm32.readline()
-        print(ns.ultrasonicLine)
+        self.stm32.read_ultrasonic()
 
     def send_angleServo(self, angle):
         self.stm32.send(angle)
@@ -116,7 +115,7 @@ class NavigationSupervisor:
         
         if self.navigating:
             gps = self.map_nav.currentLocation
-            self.state = self.nav_agent.navigate()
+            self.state = self.nav_agent.navigate(self.stm32.ultrasonic[0],self.stm32.ultrasonic[1],self.stm32.ultrasonic[2])
 
 
 
@@ -133,35 +132,41 @@ class NavigationSupervisor:
     # STATE MACHINE OUTPUT
     # --------------------------------------------------
     def stateMachine(self, state):
-
-        if state == None:
+        if state is None:
             return
-        
+
         if state == "EMStop":
             self.navigating = False
+            self.stm32.send(4, 0)
             print("RED LIGHT Detected")
-        elif state == "FOLLOW_ROUTE":
-            target = self.nav_agent.target
-            print(f"[FOLLOW] target={target}")
 
-        elif state == "TARGET_REACHED":
-            self.nav_agent.state = "FOLLOW_ROUTE"
+        elif state == "FOLLOW_ROUTE":
+            angle = self.nav_agent.turn_angle
+            if abs(angle) < 10:
+                self.stm32.send(3, 300)
+            else:
+                self.stm32.send_drive_command(angle)
+            print(f"[FOLLOW] angle={angle:.1f}")
 
         elif state == "WRONG_DIRECTION":
             angle = self.nav_agent.turn_angle
-            if angle > 0:
-                print(f"Turn RIGHT {angle:.1f}ï¿½")
-            else:
-                print(f"Turn LEFT {abs(angle):.1f}ï¿½")
+            self.stm32.send_drive_command(angle)
+            print(f"[TURN] angle={angle:.1f}")
+
+        elif state == "MOVE_BACK_AND_TURN":
+            angle = self.nav_agent.turn_angle
+            self.stm32.send_drive_command(angle)
+            print(f"[RECOVER] angle={angle:.1f}")
 
         elif state == "OFF_ROUTE":
+            self.stm32.send(4, 0)
             self.nav_agent.updatePath()
-
-            print("[WARN] Off route ? stop + reroute suggestion")
+            print("[WARN] Off route — rerouting")
 
         elif state == "DESTINATION_REACHED":
-            print("[DONE] Destination reached ? stopping navigation")
-            self.stop_navigation()
+            self.stm32.send(4, 0)
+            print("[DONE] Destination reached")
+            self.navigating = False
             
 # --------------------------------------------------
 # RUN
