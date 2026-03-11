@@ -12,8 +12,7 @@ from datetime import datetime
 
 def capture_image(folder="cam_pic"):
     os.makedirs(folder, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    img_path = os.path.join(folder, f"image_{ts}.jpg")
+    img_path = os.path.join(folder, f"frame.jpg")
     # subprocess.run(["rpicam-still", "-o", img_path], check=True)
     subprocess.run(["rpicam-still", "-n", "-t", "1",
                     "--width", "640", "--height", "480",

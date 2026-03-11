@@ -8,6 +8,7 @@ from button_recorder import VoiceRecordButton
 from server import start_debug_server
 from api.object_detection import PedestrianLightDetector
 from cameraNobjectdec import capture_detection
+import statistics
 
 class NavigationSupervisor:
     def __init__(self, mode="walk", period=0.2):
@@ -31,6 +32,9 @@ class NavigationSupervisor:
 
         self.state = None
         self.light_state = False
+
+        self.navigatestate = 0
+
 
     def reset(self, destination):
         # keep same map_nav object
@@ -57,18 +61,41 @@ class NavigationSupervisor:
 
     # This function will be run independently to update the current location
     def read_gps(self):
-        self.gps.read()
-        pos = self.gps.get_position()
 
+        # lats = []
+        # lons = []
+
+        # for i in range(5):
+
+        #     self.gps.read()
+        #     gps_data = self.gps.get_position()
+
+        #     if gps_data is None:
+        #         self.map_nav.updateCurrentLocation(None)
+        #         return
+
+        #     lat, lon = gps_data
+        #     lats.append(lat)
+        #     lons.append(lon)
+
+        #     time.sleep(0.01)   # small delay helps avoid duplicate sentence
+
+        #     # median position
+        # median_lat = statistics.median(lats)
+        # median_lon = statistics.median(lons)
+
+        # pos = (median_lat, median_lon)
+        pos = self.map_nav.currentLocation
         if pos is None:
             self.map_nav.updateCurrentLocation(None)
             return
 
         self.map_nav.updateCurrentLocation(self.map_nav.lowPassFilter(pos))
-
+        if self.map_nav.currentLocation is None:
+            return
         if self.nav_agent.prevGPS is None:
             self.nav_agent.prevGPS = self.map_nav.currentLocation
-        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 0.8:
+        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 10:
             self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
             self.nav_agent.prevGPS = self.map_nav.currentLocation
 
@@ -138,33 +165,70 @@ class NavigationSupervisor:
         if state is None:
             return
 
-        if state == "EMStop":
-            self.navigating = False
+        if state == "IDLE":
             self.stm32.send(4, 0)
-            print("RED LIGHT Detected")
+            self.navigatestate = 0
+            return
 
-        elif state == "FOLLOW_ROUTE":
-            angle = self.nav_agent.turn_angle
-            if abs(angle) < 10:
-                self.stm32.send(3, 300)
-            else:
-                self.stm32.send_drive_command(angle)
-            print(f"[FOLLOW] angle={angle:.1f}")
+        if state == "EMStop":
+            self.stm32.send(4, 0)
+            self.navigatestate = 0
+            print("RED LIGHT detected")
+            return
 
-        elif state == "WRONG_DIRECTION":
+        if state == "DESTINATION_REACHED":
+            self.stm32.send(4, 0)
+            self.navigating = False
+            self.navigatestate = 0
+            print("[DONE] Destination reached")
+            return
+
+        if state == "OFF_ROUTE":
+            self.stm32.send(4, 0)
+            self.navigatestate = 0
+            self.nav_agent.updatePath()
+            print("[WARN] Off route ? rerouting")
+            return
+
+        if state == "AVOID":
+
             angle = self.nav_agent.turn_angle
+
             self.stm32.send_drive_command(angle)
+
+            # FIX HEADING AFTER TURN
+            if self.nav_agent.heading is not None:
+                self.nav_agent.heading = (self.nav_agent.heading + angle) % 360
+
+            self.nav_agent.turn_angle = 0
+
+            print(f"[AVOID] angle={angle:.1f}")
+            return
+
+        if state == "WRONG_DIRECTION":
+
+            angle = self.nav_agent.turn_angle
+
+            self.stm32.send_drive_command(angle)
+
+            if self.nav_agent.heading is not None:
+                self.nav_agent.heading = (self.nav_agent.heading + angle) % 360
+
+            self.nav_agent.turn_angle = 0
+
             print(f"[TURN] angle={angle:.1f}")
 
-        elif state == "OFF_ROUTE":
-            self.stm32.send(4, 0)
-            self.nav_agent.updatePath()
-            print("[WARN] Off route — rerouting")
+        if state == "FOLLOW_ROUTE":
+            angle = self.nav_agent.turn_angle
 
-        elif state == "DESTINATION_REACHED":
-            self.stm32.send(4, 0)
-            print("[DONE] Destination reached")
-            self.navigating = False
+            if abs(angle) <= 12:
+                self.stm32.send(3, 1000000)
+                print("[FOLLOW] straight")
+            else:
+                self.stm32.send_drive_command(angle)
+                self.nav_agent.heading = (self.nav_agent.heading + angle) % 360
+                print(f"[FOLLOW] steer angle={angle:.1f}")
+            return
             
 # --------------------------------------------------
 # RUN
@@ -176,10 +240,7 @@ if __name__ == "__main__":
     ns.lock = threading.Lock()
 
     # The period of the run is 0.6 second
-    # def gps_loop():
-    #     while True:
-    #         with ns.lock:
-    #             ns.read_gps()
+
     # -------------------------
     # Ultrasonic Thread
     # -------------------------
@@ -205,16 +266,14 @@ if __name__ == "__main__":
     # -------------------------
     def navigation_loop():
         while True:
+            ns.read_gps()
             with ns.lock:
-                ns.read_gps()
                 ns.pipeLineStatusPath()
                 state = ns.state
                 navigating = ns.navigating
 
             if state and navigating:
                 ns.stateMachine(state)
-
-            time.sleep(ns.period)
 
     def camera_loop():
         while True:
@@ -234,9 +293,8 @@ if __name__ == "__main__":
     # Start all threads
     threading.Thread(target=ultrasonic_loop, daemon=True).start()
     threading.Thread(target=voice_loop, daemon=True).start()
-    # threading.Thread(target=gps_loop, daemon=True).start()
     threading.Thread(target=navigation_loop, daemon=True).start()
-    threading.Thread(target=camera_loop, daemon=True).start()
+    # threading.Thread(target=camera_loop, daemon=True).start()
     # Debug web server (runs in background)
     threading.Thread(
         target=start_debug_server,

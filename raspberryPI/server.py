@@ -48,7 +48,6 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                             "target": nav.target,
                             "turn_angle": nav.turn_angle,
                             "wrong_dir_counter": nav.wrong_dir_counter,
-                            "offroute_counter": nav.offroute_counter,
                             "Distance To Target":nav.dist_to_target,
                             "heading":nav.heading
                         },
@@ -91,7 +90,16 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                         elif key == "recalculate":
                             nav.updatePath()
                             self.send_text("Route recalculated")
+                        elif key == "location":
+                            lat, lng = map(float, value.split(","))
 
+                            mp.updateCurrentLocation((lat, lng))
+
+                            # also update heading reference so navigation behaves correctly
+                            if nav.prevGPS is None:
+                                nav.prevGPS = (lat, lng)
+
+                            self.send_text("Current location updated")
                         else:
                             self.send_text("Unknown parameter", 400)
 
@@ -108,53 +116,209 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                 <html>
                 <head>
                 <title>DoggyStick Control</title>
+
                 <style>
-                body { background:#1e1e1e; color:#eee; font-family:Arial; padding:20px;}
-                h2 { border-bottom:1px solid #444; }
-                pre { background:#111; padding:15px; border-radius:10px; }
-                input { padding:8px; margin:5px; border-radius:8px; border:none;}
-                button { padding:8px 15px; border-radius:8px; border:none; cursor:pointer;}
-                button:hover { opacity:0.8; }
-                .box { margin-bottom:20px; }
+
+                body{
+                background:#0f172a;
+                color:#e2e8f0;
+                font-family:Arial;
+                padding:30px;
+                }
+
+                h1{
+                margin-bottom:25px;
+                }
+
+                .grid{
+                display:grid;
+                grid-template-columns:repeat(3,1fr);
+                gap:20px;
+                }
+
+                .card{
+                background:#1e293b;
+                padding:20px;
+                border-radius:12px;
+                box-shadow:0 4px 10px rgba(0,0,0,0.4);
+                }
+
+                .card h3{
+                margin-top:0;
+                color:#38bdf8;
+                }
+
+                .value{
+                font-size:22px;
+                font-weight:bold;
+                }
+
+                input{
+                padding:8px;
+                border-radius:8px;
+                border:none;
+                margin-right:10px;
+                }
+
+                button{
+                padding:8px 14px;
+                border-radius:8px;
+                border:none;
+                cursor:pointer;
+                margin-right:5px;
+                background:#38bdf8;
+                color:black;
+                font-weight:bold;
+                }
+
+                button:hover{
+                opacity:0.85;
+                }
+
+                pre{
+                background:#020617;
+                padding:10px;
+                border-radius:8px;
+                overflow:auto;
+                max-height:250px;
+                }
+
+                .status-ok{color:#22c55e}
+                .status-bad{color:#ef4444}
+
                 </style>
                 </head>
+
                 <body>
 
-                <h1>🚗 DoggyStick Debug Panel</h1>
+                <h1>? DoggyStick Navigation Dashboard</h1>
 
-                <div class="box">
-                <h2>Live State</h2>
-                <pre id="state">Loading...</pre>
+                <div class="grid">
+
+                <div class="card">
+                <h3>Navigation State</h3>
+                <div id="nav_state" class="value">--</div>
+                <div>Angle: <span id="angle">--</span>�</div>
+                <div>Heading: <span id="heading">--</span></div>
+                </div>
+                <div class="card">
+                <h3>Set Current Location</h3>
+
+                <input id="loc" placeholder="47.6555,-122.308">
+
+                <button onclick="setParam('location',loc.value)">
+                Update Location
+                </button>
+
                 </div>
 
-                <div class="box">
-                <h2>Set Destination</h2>
+                <div class="card">
+                <h3>Target</h3>
+                <div>Index: <span id="index">--</span></div>
+                <div>Distance: <span id="dist">--</span> m</div>
+                </div>
+
+                <div class="card">
+                <h3>System</h3>
+                <div>Navigating: <span id="nav_active">--</span></div>
+                </div>
+
+                <div class="card">
+                <h3>Ultrasonic</h3>
+                <div>Front: <span id="front">--</span> cm</div>
+                <div>Left: <span id="left">--</span> cm</div>
+                <div>Right: <span id="right">--</span> cm</div>
+                </div>
+
+                <div class="card">
+                <h3>Destination</h3>
+
                 <input id="dest" placeholder="47.5843,-122.1481">
-                <button onclick="setParam('destination', dest.value)">Set</button>
+
+                <button onclick="setParam('destination',dest.value)">
+                Set
+                </button>
+
                 </div>
 
-                <div class="box">
-                <h2>Navigation Control</h2>
-                <button onclick="setParam('navigating','1')">Start</button>
-                <button onclick="setParam('navigating','0')">Stop</button>
-                <button onclick="setParam('recalculate','1')">Recalculate Route</button>
+                <div class="card">
+                <h3>Controls</h3>
+
+                <button onclick="setParam('navigating','1')">
+                Start
+                </button>
+
+                <button onclick="setParam('navigating','0')">
+                Stop
+                </button>
+
+                <button onclick="setParam('recalculate','1')">
+                Recalculate
+                </button>
+
                 </div>
+
+                </div>
+
+                <br>
+
+                <div class="card">
+                <h3>Raw State</h3>
+                <pre id="raw"></pre>
+                </div>
+
 
                 <script>
+
                 async function refresh(){
-                    const r = await fetch('/state');
-                    const j = await r.json();
-                    document.getElementById('state').innerText =
-                        JSON.stringify(j,null,2);
+
+                const r = await fetch('/state')
+                const j = await r.json()
+
+                document.getElementById("raw").innerText =
+                JSON.stringify(j,null,2)
+
+                document.getElementById("nav_state").innerText =
+                j.Navigation.state
+
+                document.getElementById("angle").innerText =
+                j.Navigation.turn_angle.toFixed(1)
+
+                document.getElementById("heading").innerText =
+                j.Navigation.heading
+
+                document.getElementById("index").innerText =
+                j.Navigation.index
+
+                document.getElementById("dist").innerText =
+                j.Navigation["Distance To Target"]
+
+                document.getElementById("nav_active").innerText =
+                j.System.navigating
+
+                if(j.System.ultrasonic){
+
+                document.getElementById("front").innerText =
+                j.System.ultrasonic.front.toFixed(1)
+
+                document.getElementById("left").innerText =
+                j.System.ultrasonic.left.toFixed(1)
+
+                document.getElementById("right").innerText =
+                j.System.ultrasonic.right.toFixed(1)
+
+                }
+
                 }
 
                 async function setParam(k,v){
-                    await fetch('/set?'+k+'='+encodeURIComponent(v));
-                    refresh();
+                await fetch('/set?'+k+'='+encodeURIComponent(v))
+                refresh()
                 }
 
-                setInterval(refresh,1000);
-                refresh();
+                setInterval(refresh,500)
+                refresh()
+
                 </script>
 
                 </body>

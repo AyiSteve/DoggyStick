@@ -11,183 +11,149 @@ class Navigation:
         self.target = None
         self.index = 0
 
-        self.state = "FOLLOW_ROUTE"
+        self.state = "IDLE"
         self.heading = None
-
-        self.turn_angle = 0.0
-        self.offroute_counter = 0
-        self.wrong_dir_counter = 0
-        self.dist_to_target = 0
-
         self.prevGPS = None
 
+        self.turn_angle = 0.0
+        self.dist_to_target = 0.0
+        self.wrong_dir_counter = 0
 
     def updatePath(self):
         self.map.updateDirection()
-        self.index = 0
-        self.target = None
-        self.state =  "FOLLOW_ROUTE"
         self.path = self.map.WalkPath
+        self.index = 0
+        self.target = self.path[0] if self.path else None
+
+        self.state = "IDLE"
+        self.turn_angle = 0.0
+        self.dist_to_target = 0.0
         self.wrong_dir_counter = 0
-        self.offroute_counter = 0
-        self.dist_to_target = 0
         self.heading = None
+        self.prevGPS = None
 
-    # --------------------------------------------------
-    # Target update
-    # --------------------------------------------------
     def updateTarget(self):
-        if not self.path or len(self.path) == 0:
-            raise RuntimeError("Navigation path not initialized")
-
+        if not self.path:
+            self.target = None
+            return
         self.target = self.path[self.index]
 
-    def obstacleAvoidance(self, front, left, right):
-        STOP_THRESHOLD = 20
-        SAFE_FRONT = 40
+    def avoidObstacle(self, front, left, right):
+        STOP = 20
+        SAFE_FRONT = 50
+        SIDE_MIN = 20
+        CART_HALF = 20
 
-        if front < STOP_THRESHOLD:
-            if left > right:
-                return "RECOVER_LEFT", -60
-            else:
-                return "RECOVER_RIGHT", 60
+        left_safe = left - CART_HALF
+        right_safe = right - CART_HALF
 
-        side_bias = left - right
-        angle = max(min(side_bias * 1.0, 45), -45)
+        if front < STOP:
+            return -60 if left > right else 60
 
-        if front < SAFE_FRONT:
-            return "AVOID", angle
+        if front < SAFE_FRONT or left_safe < SIDE_MIN or right_safe < SIDE_MIN:
+            bias = right_safe - left_safe
 
-        return "CLEAR", 0
+            if abs(bias) < 5:
+                return -45 if left_safe > right_safe else 45
 
-    # --------------------------------------------------
-    # Wrong direction detection
-    # --------------------------------------------------
-    def checkDirection(self, gps, front, left, right):
+            return max(min(bias * 2.5, 60), -60)
 
-        if gps is None or self.heading is None or self.target is None:
-            return False
+        return None
 
-        # -----------------------------
-        # ROUTE FOLLOWING ANGLE
-        # -----------------------------
+    def routeAngle(self, gps):
+        if self.target is None:
+            return 0.0
+
         desired = self.map.bearing(gps, self.target)
 
+        if self.heading is None:
+            return 0.0
+
         nav_angle = (desired - self.heading + 540) % 360 - 180
+        return max(min(nav_angle, 60), -60)
 
+    def wrongDirection(self, nav_angle):
+        ERROR_THRESHOLD = 35
 
-        # -----------------------------
-        # OBSTACLE AVOIDANCE
-        # -----------------------------
-        STOP_THRESHOLD = 20
-        SAFE_FRONT = 40
-
-        if front < STOP_THRESHOLD:
-            if left > right:
-                self.turn_angle = -60
-            else:
-                self.turn_angle = 60
-            return True   # treat as wrong direction → recovery
-
-        avoid_angle = 0
-
-        if front < SAFE_FRONT:
-            side_bias = right - left
-            avoid_angle = max(min(side_bias * 0.8, 45), -45)
-
-
-        # -----------------------------
-        # COMBINE ROUTE + AVOIDANCE
-        # -----------------------------
-        final_angle = nav_angle + 0.6 * avoid_angle
-
-        final_angle = max(min(final_angle, 90), -90)
-
-        self.turn_angle = final_angle
-
-
-        # -----------------------------
-        # WRONG DIRECTION CHECK
-        # -----------------------------
-        error = abs(nav_angle)
-        threshold = 40
-
-        if error > threshold:
+        if abs(nav_angle) > ERROR_THRESHOLD:
             self.wrong_dir_counter += 1
         else:
             self.wrong_dir_counter = 0
 
         return self.wrong_dir_counter >= 2
 
-        # --------------------------------------------------
-        # Off-route detection (windowed)
-        # --------------------------------------------------
-    def offRoute(self, gps, max_dist=30.0):
-
-        if not self.path or self.target is None:
+    def offRoute(self, gps, max_dist=20.0):
+        if not self.path:
             return False
 
-        # Distance to current target
-        dist = self.map.distance(gps, self.target)
-
-        if (self.index > 0):
-            max_dist += self.map.distance(self.target, self.path[self.index-1])
-
-        return dist > max_dist
+        nearest = min(self.map.distance(gps, wp) for wp in self.path)
+        return nearest > max_dist
 
     def targetReached(self, reach_dist=7.0):
         if self.target is None:
             return False
 
-        if self.dist_to_target < reach_dist:
-            if self.index < len(self.path) - 1:
-                self.index+=1
-                return True
-            else:
-                self.state = "DESTINATION_REACHED"
-        return False
+        if self.dist_to_target >= reach_dist:
+            return False
 
-    # --------------------------------------------------
-    # MAIN NAVIGATION LOOP
-    # --------------------------------------------------
+        if self.index < len(self.path) - 1:
+            self.index += 1
+            self.target = self.path[self.index]
+            return False
+
+        return True
+
     def navigate(self, front, left, right, lightStatus):
+        gps = self.map.currentLocation
 
-        # Basic validity check
-        if self.prevGPS is None or not self.path or self.map.currentLocation is None:
+        if gps is None or not self.path:
+            self.state = "IDLE"
+            self.turn_angle = 0.0
             return self.state
 
-        # Emergency stop (traffic light)
-        if lightStatus:
-            self.state = "EMStop"
-            return self.state
-
-        # Update next waypoint
         self.updateTarget()
 
-        # Update distance to target
-        self.dist_to_target = self.map.distance(self.map.currentLocation, self.target)
+        if self.target is None:
+            self.state = "IDLE"
+            self.turn_angle = 0.0
+            return self.state
 
-        # Check if waypoint reached
+        self.dist_to_target = self.map.distance(gps, self.target)
+
+        # Priority 1: emergency stop
+        if lightStatus:
+            self.state = "EMStop"
+            self.turn_angle = 0.0
+            return self.state
+
+        # Priority 2: destination reached
         if self.targetReached():
+            self.state = "DESTINATION_REACHED"
+            self.turn_angle = 0.0
             return self.state
 
-        if self.state == "DESTINATION_REACHED":
-            return self.state
-
-        # Off route detection
-        if self.offRoute(self.map.currentLocation):
+        # Priority 3: off route
+        if self.offRoute(gps):
             self.state = "OFF_ROUTE"
+            self.turn_angle = 0.0
             return self.state
 
-        # Compute steering + wrong direction detection
-        wrong = self.checkDirection(
-            self.map.currentLocation,
-            front,
-            left,
-            right
-        )
+        # Priority 4: obstacle avoidance
+        avoid_angle = self.avoidObstacle(front, left, right)
+        if avoid_angle is not None:
+            self.turn_angle = avoid_angle
+            self.state = "AVOID"
+            return self.state
 
-        if wrong:
+        # Priority 5: route following / wrong direction
+        nav_angle = self.routeAngle(gps)
+        self.turn_angle = nav_angle
+
+        if self.heading is None:
+            self.state = "FOLLOW_ROUTE"
+            return self.state
+
+        if self.wrongDirection(nav_angle):
             self.state = "WRONG_DIRECTION"
         else:
             self.state = "FOLLOW_ROUTE"

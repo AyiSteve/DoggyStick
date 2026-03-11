@@ -59,8 +59,8 @@ class BluetoothUART:
 
         line = self.ser.readline().decode(errors="ignore").strip()
 
-        if line:
-            print("RX:", line)
+        # if line:
+        #     print("RX:", line)
 
         return line if line else None
 
@@ -73,19 +73,19 @@ class BluetoothUART:
             return
 
         try:
-            front, left, right = map(float, line.split(","))
+            front, right, left = map(float, line.split(","))
 
             self.ultrasonic = {
                 "front": front,
                 "left": left,
                 "right": right,
             }
-
+            print(self.ultrasonic)
         except ValueError:
             pass
 
 
-    def compute_turn_time(self, angle, TURN_RATE=1.85):
+    def compute_turn_time(self, angle, TURN_RATE=1.35):
 
         seconds = abs(angle) * (TURN_RATE / 90)
         ms = int(seconds * 1000)
@@ -99,10 +99,7 @@ class BluetoothUART:
 
         direction, ms = self.compute_turn_time(angle)
 
-        if abs(angle) < 10:
-            self.send(3, 300)
-        else:
-            self.send(direction, ms)
+        self.send(direction, ms)
 
 
     def send(self, direction, ms=100):
@@ -116,7 +113,6 @@ class BluetoothUART:
         for c in data:
             self.ser.write(c.encode())
             self.ser.flush()
-            time.sleep(0.005)   
 
 
     def close(self):
@@ -146,8 +142,6 @@ class BluetoothUART:
 # time.sleep(2)
 
 # while True:
-
-#     bt.send_drive_command(180)
-
-#     time.sleep(100)
+#     bt.read_ultrasonic()
+#     print(bt.ultrasonic)
 

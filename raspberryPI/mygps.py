@@ -86,4 +86,4 @@ def test_myGPS():
         print("Timestamp     :", gps.timestamp)
         print("Date          :", gps.datestamp)
 
-#test_myGPS()
+# test_myGPS()

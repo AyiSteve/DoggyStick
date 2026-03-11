@@ -115,7 +115,7 @@ class MapNavigator:
             self.filtered_gps = (lat, lon)
         else:
             prev_lat, prev_lon = self.filtered_gps
-            alpha = 0.9
+            alpha = 0.7
 
             filt_lat = alpha * lat + (1 - alpha) * prev_lat
             filt_lon = alpha * lon + (1 - alpha) * prev_lon
