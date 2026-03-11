@@ -80,7 +80,7 @@ class BluetoothUART:
                 "left": left,
                 "right": right,
             }
-            print(self.ultrasonic)
+            # print(self.ultrasonic)
         except ValueError:
             pass
 

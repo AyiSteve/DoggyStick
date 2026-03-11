@@ -95,7 +95,7 @@ class NavigationSupervisor:
             return
         if self.nav_agent.prevGPS is None:
             self.nav_agent.prevGPS = self.map_nav.currentLocation
-        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 10:
+        if self.map_nav.distance(self.nav_agent.prevGPS, self.map_nav.currentLocation) > 0.8:
             self.nav_agent.heading = self.map_nav.bearing(self.nav_agent.prevGPS, self.map_nav.currentLocation)
             self.nav_agent.prevGPS = self.map_nav.currentLocation
 
@@ -200,7 +200,6 @@ class NavigationSupervisor:
             if self.nav_agent.heading is not None:
                 self.nav_agent.heading = (self.nav_agent.heading + angle) % 360
 
-            self.nav_agent.turn_angle = 0
 
             print(f"[AVOID] angle={angle:.1f}")
             return
@@ -214,20 +213,14 @@ class NavigationSupervisor:
             if self.nav_agent.heading is not None:
                 self.nav_agent.heading = (self.nav_agent.heading + angle) % 360
 
-            self.nav_agent.turn_angle = 0
 
             print(f"[TURN] angle={angle:.1f}")
 
         if state == "FOLLOW_ROUTE":
             angle = self.nav_agent.turn_angle
 
-            if abs(angle) <= 12:
-                self.stm32.send(3, 1000000)
-                print("[FOLLOW] straight")
-            else:
-                self.stm32.send_drive_command(angle)
-                self.nav_agent.heading = (self.nav_agent.heading + angle) % 360
-                print(f"[FOLLOW] steer angle={angle:.1f}")
+            self.stm32.send(3, 1000000)
+            print("[FOLLOW] straight")
             return
             
 # --------------------------------------------------
@@ -279,7 +272,7 @@ if __name__ == "__main__":
         while True:
             try:
                 result = capture_detection()
-                if result and result.get("label", "") != "":
+                if result and result.get("label", "") == "red light":
                     with ns.lock:
                         ns.light_state = True
                 else:

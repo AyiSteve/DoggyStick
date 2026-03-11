@@ -11,14 +11,14 @@ def capture_detection() -> dict:
     label = detector.classify_image(img_path)
 
     t1 = time.perf_counter()
-
+    print(label)
     return {
         "label": label,
         "image_path": img_path,
         "latency_s": t1 - t0
     }
     
-if __name__ == "__main__":
-    out = capture_detection()
-    print(out)
+# if __name__ == "__main__":
+#     out = capture_detection()
+#     print(out)
 

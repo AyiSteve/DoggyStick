@@ -70,11 +70,11 @@ class Navigation:
             return 0.0
 
         nav_angle = (desired - self.heading + 540) % 360 - 180
-        return max(min(nav_angle, 60), -60)
+        print(nav_angle)
+        return nav_angle
 
     def wrongDirection(self, nav_angle):
         ERROR_THRESHOLD = 35
-
         if abs(nav_angle) > ERROR_THRESHOLD:
             self.wrong_dir_counter += 1
         else:
@@ -119,6 +119,7 @@ class Navigation:
             return self.state
 
         self.dist_to_target = self.map.distance(gps, self.target)
+
 
         # Priority 1: emergency stop
         if lightStatus:

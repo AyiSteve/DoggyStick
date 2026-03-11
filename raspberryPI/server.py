@@ -100,6 +100,14 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                                 nav.prevGPS = (lat, lng)
 
                             self.send_text("Current location updated")
+                        elif key == "turn_angle":
+                            angle = float(value)
+
+                            # clamp for safety
+                            angle = max(min(angle, 90), -90)
+
+                            nav.turn_angle = angle
+                            self.send_text(f"Turn angle set to {angle}")
                         else:
                             self.send_text("Unknown parameter", 400)
 
@@ -223,11 +231,23 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
                 <div>Navigating: <span id="nav_active">--</span></div>
                 </div>
 
+
                 <div class="card">
                 <h3>Ultrasonic</h3>
                 <div>Front: <span id="front">--</span> cm</div>
                 <div>Left: <span id="left">--</span> cm</div>
                 <div>Right: <span id="right">--</span> cm</div>
+                </div>
+
+                <div class="card">
+                <h3>Manual Turn Angle</h3>
+
+                <input id="turn_input" placeholder="-60 to 60">
+
+                <button onclick="sendTurn()">
+                Send
+                </button>
+
                 </div>
 
                 <div class="card">
@@ -269,6 +289,11 @@ def start_debug_server(ns, host="0.0.0.0", port=8080):
 
 
                 <script>
+                async function sendTurn(){
+                    const val = document.getElementById("turn_input").value
+                    await fetch('/set?turn_angle=' + encodeURIComponent(val))
+                    refresh()
+                }
 
                 async function refresh(){
 

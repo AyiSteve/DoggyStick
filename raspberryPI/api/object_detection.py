@@ -78,7 +78,7 @@ def main():
 
     
 
-main()
+# main()
 
 
 # provide from roboflow
