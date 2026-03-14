@@ -110,3 +110,137 @@ Components:
 Movement commands are sent from the Raspberry Pi to the STM32 via **Bluetooth UART**.
 
 Command format:
+(num,time)
+Example:
+(3,10000000)
+Where:
+
+- `num` represents the command type
+- `time` represents how long the action should run
+
+Typical commands include:
+
+- Move forward
+- Stop
+- Turn
+
+The STM32 interprets these commands and drives the motor driver accordingly.
+
+---
+
+# Obstacle Avoidance
+
+Three ultrasonic sensors are placed at the **front, left, and right** of the device.
+
+The algorithm works as follows:
+
+1. Check if an obstacle is directly in front.
+2. Compare left and right distances.
+3. Turn toward the side with more available space.
+4. Resume route following when the path is clear.
+
+---
+
+# Traffic Light Detection
+
+Traffic lights are detected using a **Roboflow object detection model**.
+
+Steps:
+
+1. Raspberry Pi captures an image using `rpicam-still`.
+2. The image is sent to the Roboflow detection API.
+3. The server returns detected objects and confidence scores.
+4. If a **red light** is detected, the system triggers **EMStop**.
+
+---
+
+# Voice Command Input
+
+The destination is provided using voice commands.
+
+Process:
+
+1. User presses a button connected to GPIO.
+2. Audio recording starts using `arecord`.
+3. Recording stops when the button is released.
+4. Audio is converted to mono using `sox`.
+5. Speech is converted to text using **VOSK**.
+6. The recognized text is used to search destinations using the **Google Text Search API**.
+
+---
+
+# Debug Dashboard
+
+A lightweight web server is included to monitor system variables.
+
+The dashboard displays:
+
+- Current GPS location
+- Navigation state
+- Target waypoint
+- Distance to destination
+- Ultrasonic sensor readings
+- Current heading
+- Turn angle
+
+It also allows manual testing such as:
+
+- Setting current location
+- Updating destination
+- Sending manual turn commands
+
+Access the dashboard at:
+http://localhost:8080/ui
+---
+
+# Hardware Components
+
+| Component | Purpose |
+|--------|--------|
+| Raspberry Pi | Main processing unit |
+| STM32 Microcontroller | Motor control |
+| NEO-6M GPS | Location tracking |
+| INMP441 Microphone | Voice input |
+| Ultrasonic Sensors | Obstacle detection |
+| Motor Driver | Controls motor power |
+| DC Motors | Drive the wheels |
+| Raspberry Pi Camera | Traffic light detection |
+| Bluetooth Module | Communication between Pi and STM32 |
+
+---
+
+# Software Dependencies
+
+Python libraries:
+pynmea2
+requests
+gpiozero
+opencv-python
+vosk
+System tools:
+arecord
+sox
+rpicam-still
+---
+
+# Running the System
+
+Start the navigation supervisor:
+python navigationSupervisor.py
+Open the debug dashboard:
+http://:8080/ui
+---
+
+# Future Improvements
+
+- Local object detection to reduce API latency
+- Improved sensor fusion for better localization
+- More accurate turning control
+- Battery optimization
+- Integration with wearable assistive devices
+
+---
+
+# License
+
+This project is intended for educational and research purposes.
