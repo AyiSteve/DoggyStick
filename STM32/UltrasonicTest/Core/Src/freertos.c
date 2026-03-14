@@ -172,7 +172,7 @@ void Task_Motor(void *argument)
     MotorCommand_t cmd;
     int active_dir = 4;  // 4 = stop
     uint32_t end_tick = 0;
-    const uint16_t speed = 40000;
+    const uint16_t speed = 65000;
 
     stop_all();
 

@@ -10490,92 +10490,92 @@ LOAD /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.id
  .debug_line    0x00029f28      0xec9 ./USB_HOST/Target/usbh_conf.o
  .debug_line    0x0002adf1      0x7a5 ./USB_HOST/Target/usbh_platform.o
 
-.debug_str      0x00000000    0xe1c55
- .debug_str     0x00000000    0xe1c55 ./Core/Src/freertos.o
-                              0xd1824 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/gpio.o
+.debug_str      0x00000000    0xe1ca6
+ .debug_str     0x00000000    0xe1ca6 ./Core/Src/freertos.o
+                              0xd1822 (size before relaxing)
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/gpio.o
                               0xc8739 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/i2c.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/i2c.o
                               0xc8c56 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/i2s.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/i2s.o
                               0xc8c3e (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/liquidcrystal_i2c.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/liquidcrystal_i2c.o
                               0xc8b00 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/main.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/main.o
                               0xd1534 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/stm32f4xx_hal_msp.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/stm32f4xx_hal_msp.o
                               0xc8b69 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/stm32f4xx_hal_timebase_tim.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/stm32f4xx_hal_timebase_tim.o
                               0xc8c29 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/stm32f4xx_it.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/stm32f4xx_it.o
                               0xc8f92 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/syscalls.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/syscalls.o
                                0x99f7 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/sysmem.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/sysmem.o
                                0x7795 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/system_stm32f4xx.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/system_stm32f4xx.o
                               0xc8132 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/tim.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/tim.o
                               0xc9472 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Src/usart.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Src/usart.o
                               0xc8be4 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Core/Startup/startup_stm32f407vgtx.o
+ .debug_str     0x000e1ca6        0x0 ./Core/Startup/startup_stm32f407vgtx.o
                                  0x97 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
                               0xc8cb6 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.o
                               0xc8a32 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.o
                               0xc82ad (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hcd.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hcd.o
                               0xc8a1a (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.o
                               0xc9150 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s.o
                               0xc8723 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s_ex.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s_ex.o
                               0xc8625 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.o
                               0xc8566 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.o
                               0xc8284 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.o
                               0xc94bc (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.o
                               0xc8cc8 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.o
                               0xc8b47 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.o
+ .debug_str     0x000e1ca6        0x0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.o
                               0xc8aeb (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Class/CDC/Src/usbh_cdc.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Class/CDC/Src/usbh_cdc.o
                               0xd30a5 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_core.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_core.o
                               0xd2b85 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_ctlreq.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_ctlreq.o
                               0xd255a (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_ioreq.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_ioreq.o
                               0xd22ca (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_pipes.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_pipes.o
                               0xd2260 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.o
                               0xd312d (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/list.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/list.o
                                0xac46 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/queue.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/queue.o
                                0xc786 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/tasks.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/tasks.o
                                0xd58b (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/timers.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/timers.o
                                0xcfd7 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.o
                                0xb984 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.o
+ .debug_str     0x000e1ca6        0x0 ./Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.o
                                0xb588 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./USB_HOST/App/usb_host.o
+ .debug_str     0x000e1ca6        0x0 ./USB_HOST/App/usb_host.o
                               0xd294a (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./USB_HOST/Target/usbh_conf.o
+ .debug_str     0x000e1ca6        0x0 ./USB_HOST/Target/usbh_conf.o
                               0xd31f4 (size before relaxing)
- .debug_str     0x000e1c55        0x0 ./USB_HOST/Target/usbh_platform.o
+ .debug_str     0x000e1ca6        0x0 ./USB_HOST/Target/usbh_platform.o
                               0xc8041 (size before relaxing)
 
 .comment        0x00000000       0x43

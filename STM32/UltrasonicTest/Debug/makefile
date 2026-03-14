@@ -68,8 +68,8 @@ all: main-build
 main-build: UltrasonicTest.elf secondary-outputs
 
 # Tool invocations
-UltrasonicTest.elf UltrasonicTest.map: $(OBJS) $(USER_OBJS) /Users/stevegwy/Project/UW\ WINTER\ 2026/EE475/DoggyStick/STM32/UltrasonicTest/STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "UltrasonicTest.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/stevegwy/Project/UW WINTER 2026/EE475/DoggyStick/STM32/UltrasonicTest/STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="UltrasonicTest.map" -Wl,--gc-sections -static -u _printf_float -u _printf_float -u _scanf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+UltrasonicTest.elf UltrasonicTest.map: $(OBJS) $(USER_OBJS) /Users/stevegwy/Project/UWWINTER2026/EE475/DoggyStick/STM32/UltrasonicTest/STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "UltrasonicTest.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/stevegwy/Project/UWWINTER2026/EE475/DoggyStick/STM32/UltrasonicTest/STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="UltrasonicTest.map" -Wl,--gc-sections -static -u _printf_float -u _printf_float -u _scanf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

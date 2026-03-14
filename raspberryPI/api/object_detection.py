@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 class PedestrianLightDetector:
     def __init__(
             self,
-            api_key: str ="3n6ywM5Jck752Comeagi",
+            api_key: str ="_",
             workspace_name: str = "pedestrian-traffic-light-3p4dd-zjeii/6",
             api_url: str = "https://serverless.roboflow.com",
             min_confidence: float =0.40,
